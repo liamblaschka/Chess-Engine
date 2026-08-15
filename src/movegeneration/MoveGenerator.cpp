@@ -19,16 +19,14 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
         return;
     }
 
-    // Move directly in front
+    // Foward move
     if (board.getPiece(rank + direction, file).type == PieceType::None) {
         moves.push_back(Move(rank, file, rank + direction, file));
 
-        // Move second square
-        if (rank + (direction * 2) >= 0 && rank + (direction * 2) < 8) {
-            if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
-                if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
-                    moves.push_back(Move(rank, file, rank + (direction * 2), file));
-                }
+        // Double move from starting rank
+        if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
+            if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
+                moves.push_back(Move(rank, file, rank + (direction * 2), file));
             }
         }
     }
@@ -50,27 +48,59 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     }
 }
 
+void MoveGenerator::generateKnightMoves(const Board& board, std::vector<Move>& moves, int rank, int file) {
+    Colour turn = board.getTurn();
+
+    int directions[8][2] = {
+        {2, -1},
+        {2, 1},
+        {1, 2},
+        {-1, 2},
+        {-2, 1},
+        {-2, -1},
+        {-1, -2},
+        {1, -2}
+    };
+
+    for (auto& direction : directions) {
+        int target_rank = rank + direction[0];
+        int target_file = file + direction[1];
+
+        if (target_rank < 0 || target_rank >= 8 || target_file < 0 || target_file >= 8) {
+            continue;
+        }
+
+        const Piece& target = board.getPiece(target_rank, target_file);
+        if (target.type == PieceType::None || target.colour != turn) {
+            moves.push_back(Move(rank, file, target_rank, target_file));
+        }
+    }
+}
+
 std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
     std::vector<Move> moves;
     for (int rank = 0; rank < 8; rank++) {
         for (int file = 0; file < 8; file++) {
             const Piece& piece = board.getPiece(rank, file);
-            switch (piece.type) {
-                case (PieceType::Pawn):
-                    generatePawnMoves(board, moves, rank, file);
-                    break;
-                case (PieceType::Knight):
-                    break;
-                case (PieceType::Bishop):
-                    break;
-                case (PieceType::Rook):
-                    break;
-                case (PieceType::Queen):
-                    break;
-                case (PieceType::King):
-                    break;
-                case (PieceType::None):
-                    break;
+            if (piece.colour == board.getTurn()) {
+                switch (piece.type) {
+                    case (PieceType::Pawn):
+                        generatePawnMoves(board, moves, rank, file);
+                        break;
+                    case (PieceType::Knight):
+                        generateKnightMoves(board, moves, rank, file);
+                        break;
+                    case (PieceType::Bishop):
+                        break;
+                    case (PieceType::Rook):
+                        break;
+                    case (PieceType::Queen):
+                        break;
+                    case (PieceType::King):
+                        break;
+                    case (PieceType::None):
+                        break;
+                }
             }
         }
     }

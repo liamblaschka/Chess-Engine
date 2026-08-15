@@ -7,6 +7,7 @@
 class MoveGenerator {
 private:
     void generatePawnMoves(const Board& board, std::vector<Move>& moves, int rank, int file);
+    void generateKnightMoves(const Board& board, std::vector<Move>& moves, int rank, int file);
 public:
     MoveGenerator();
     std::vector<Move> generatePseudoLegalMoves(const Board& board);

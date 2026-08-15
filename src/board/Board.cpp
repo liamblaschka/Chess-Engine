@@ -46,9 +46,7 @@ Colour Board::getTurn() const { return turn; }
 void Board::setTurn(Colour colour) { turn = colour; }
 
 void Board::clear() {
-    for (auto square : squares) {
-        square = Piece();
-    }
+    squares.fill(Piece());
 }
 
 void Board::draw() {
