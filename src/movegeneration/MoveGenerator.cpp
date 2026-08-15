@@ -136,6 +136,68 @@ void MoveGenerator::generateRookMoves(const Board& board, std::vector<Move>& mov
     }
 }
 
+void MoveGenerator::generateQueenMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+    const int directions[8][2] = {
+        {1, 0},
+        {0, 1},
+        {-1, 0},
+        {0, -1},
+        {1, -1},
+        {1, 1},
+        {-1, 1},
+        {-1, -1}
+    };
+
+    for (const auto& direction : directions) {
+        int rank_direction = direction[0];
+        int file_direction = direction[1];
+
+        int target_rank = rank + rank_direction;
+        int target_file = file + file_direction;
+        while (target_rank >= 0 && target_file >= 0 && target_rank < 8 && target_file < 8) {
+            const Piece& target = board.getPiece(target_rank, target_file);
+            if (target.type == PieceType::None) {
+                moves.push_back(Move(rank, file, target_rank, target_file));
+            } else {
+                if (target.colour != turn) {
+                    moves.push_back(Move(rank, file, target_rank, target_file));
+                }
+                break;
+            }
+
+            target_rank += rank_direction;
+            target_file += file_direction; 
+        }
+    }
+}
+
+void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+    const int directions[8][2] = {
+        {1, 0},
+        {0, 1},
+        {-1, 0},
+        {0, -1},
+        {1, -1},
+        {1, 1},
+        {-1, 1},
+        {-1, -1}
+    };
+
+    for (const auto& direction : directions) {
+        int rank_direction = direction[0];
+        int file_direction = direction[1];
+
+        int target_rank = rank + rank_direction;
+        int target_file = file + file_direction;
+        if (target_rank >= 0 && target_file >= 0 && target_rank < 8 && target_file < 8) {
+            const Piece& target = board.getPiece(target_rank, target_file);
+            if (target.type == PieceType::None || target.colour != turn) {
+                moves.push_back(Move(rank, file, target_rank, target_file));
+            }
+        }
+    }
+}
+
 std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
     std::vector<Move> moves;
     Colour turn = board.getTurn();
@@ -157,8 +219,10 @@ std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
                         generateRookMoves(board, moves, turn, rank, file);
                         break;
                     case (PieceType::Queen):
+                        generateQueenMoves(board, moves, turn, rank, file);
                         break;
                     case (PieceType::King):
+                        generateKingMoves(board, moves, turn, rank, file);
                         break;
                     case (PieceType::None):
                         break;
