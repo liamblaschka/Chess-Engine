@@ -159,6 +159,269 @@ void testPawnMoves(MoveGenerator& generator) {
     }
 }
 
+void testEnPassantMoves(MoveGenerator& generator) {
+    std::cout << "\n--- En Passant Tests ---\n";
+
+    // White captures black pawn en passant to the left
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(6, 3, {PieceType::Pawn, Colour::Black}); // d7
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        // Black: d7 -> d5
+        board.makeMove(
+            Move(6, 3, 4, 3, MoveType::Normal)
+        );
+
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        testMove(
+            "White can capture en passant left",
+            moves,
+            4, 4,
+            5, 3
+        );
+    }
+
+    // White captures black pawn en passant to the right
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(6, 5, {PieceType::Pawn, Colour::Black}); // f7
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        // Black: f7 -> f5
+        board.makeMove(
+            Move(6, 5, 4, 5, MoveType::Normal)
+        );
+
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        testMove(
+            "White can capture en passant right",
+            moves,
+            4, 4,
+            5, 5
+        );
+    }
+
+    // Black captures white pawn en passant to the left
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(1, 3, {PieceType::Pawn, Colour::White}); // d2
+        board.setPiece(3, 4, {PieceType::Pawn, Colour::Black}); // e4
+
+        // White: d2 -> d4
+        board.makeMove(
+            Move(1, 3, 3, 3, MoveType::Normal)
+        );
+
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        testMove(
+            "Black can capture en passant left",
+            moves,
+            3, 4,
+            2, 3
+        );
+    }
+
+    // Black captures white pawn en passant to the right
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(1, 5, {PieceType::Pawn, Colour::White}); // f2
+        board.setPiece(3, 4, {PieceType::Pawn, Colour::Black}); // e4
+
+        // White: f2 -> f4
+        board.makeMove(
+            Move(1, 5, 3, 5, MoveType::Normal)
+        );
+
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        testMove(
+            "Black can capture en passant right",
+            moves,
+            3, 4,
+            2, 5
+        );
+    }
+
+    // Cannot en passant after a one-square pawn move
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(5, 3, {PieceType::Pawn, Colour::Black}); // d6
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        // Black: d7 -> d6
+        board.makeMove(
+            Move(6, 3, 5, 3, MoveType::Normal)
+        );
+
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        testMoveAbsent(
+            "White cannot en passant after one-square move",
+            moves,
+            4, 4,
+            5, 3
+        );
+    }
+
+    // Cannot en passant after another move has been made
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(6, 3, {PieceType::Pawn, Colour::Black}); // d7
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        board.setPiece(1, 0, {PieceType::Pawn, Colour::White}); // a2
+        board.setPiece(6, 0, {PieceType::Pawn, Colour::Black}); // a7
+
+        // Black: d7 -> d5
+        board.makeMove(
+            Move(6, 3, 4, 3, MoveType::Normal)
+        );
+
+        // White: a2 -> a3
+        board.makeMove(
+            Move(1, 0, 2, 0, MoveType::Normal)
+        );
+
+        // Black: a7 -> a6
+        board.makeMove(
+            Move(6, 0, 5, 0, MoveType::Normal)
+        );
+
+        // It is now White's turn.
+        // The last move was a7 -> a6, not d7 -> d5.
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        testMoveAbsent(
+            "White cannot en passant after another move",
+            moves,
+            4, 4,
+            5, 3
+        );
+    }
+
+    // En passant move has the correct MoveType
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(6, 3, {PieceType::Pawn, Colour::Black}); // d7
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        // Black: d7 -> d5
+        board.makeMove(
+            Move(6, 3, 4, 3, MoveType::Normal)
+        );
+
+        auto moves = generator.generatePseudoLegalMoves(board);
+
+        bool found_en_passant = false;
+
+        for (const Move& move : moves) {
+            if (move.from == 4 * 8 + 4 &&
+                move.to == 5 * 8 + 3) {
+
+                if (move.type == MoveType::EnPassant) {
+                    found_en_passant = true;
+                }
+            }
+        }
+
+        if (found_en_passant) {
+            std::cout << "[PASS] En passant move has correct type\n";
+        } else {
+            std::cout << "[FAIL] En passant move has correct type\n";
+        }
+    }
+
+    // En passant actually captures the pawn
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(6, 3, {PieceType::Pawn, Colour::Black}); // d7
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        // Black: d7 -> d5
+        board.makeMove(
+            Move(6, 3, 4, 3, MoveType::Normal)
+        );
+
+        // White: e5 -> d6 en passant
+        board.makeMove(
+            Move(4, 4, 5, 3, MoveType::EnPassant)
+        );
+
+        const Piece& destination = board.getPiece(5, 3);
+        const Piece& captured = board.getPiece(4, 3);
+
+        if (destination.type == PieceType::Pawn &&
+            destination.colour == Colour::White &&
+            captured.type == PieceType::None) {
+            std::cout << "[PASS] En passant captures pawn\n";
+        } else {
+            std::cout << "[FAIL] En passant captures pawn\n";
+        }
+    }
+
+    // Undo en passant restores the captured pawn
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(6, 3, {PieceType::Pawn, Colour::Black}); // d7
+        board.setPiece(4, 4, {PieceType::Pawn, Colour::White}); // e5
+
+        // Black: d7 -> d5
+        board.makeMove(
+            Move(6, 3, 4, 3, MoveType::Normal)
+        );
+
+        // White: e5 -> d6 en passant
+        board.makeMove(
+            Move(4, 4, 5, 3, MoveType::EnPassant)
+        );
+
+        board.undoMove();
+
+        const Piece& white_pawn = board.getPiece(4, 4);
+        const Piece& black_pawn = board.getPiece(4, 3);
+
+        if (white_pawn.type == PieceType::Pawn &&
+            white_pawn.colour == Colour::White &&
+            black_pawn.type == PieceType::Pawn &&
+            black_pawn.colour == Colour::Black) {
+            std::cout << "[PASS] Undo en passant restores board\n";
+        } else {
+            std::cout << "[FAIL] Undo en passant restores board\n";
+        }
+    }
+}
+
 void testKnightMoves(MoveGenerator& generator) {
     std::cout << "\n--- Knight Tests ---\n";
 
@@ -465,6 +728,7 @@ int main() {
     MoveGenerator generator;
 
     testPawnMoves(generator);
+    testEnPassantMoves(generator);
     testKnightMoves(generator);
     testBishopMoves(generator);
     testRookMoves(generator);

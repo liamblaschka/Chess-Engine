@@ -3,6 +3,7 @@
 #include "Move.h"
 #include "Board.h"
 #include <vector>
+#include <cmath>
 
 MoveGenerator::MoveGenerator() {}
 
@@ -43,6 +44,24 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
         const Piece& target = board.getPiece(rank + direction, file + 1);
         if (target.colour != Colour::None && target.colour != turn) {
             moves.push_back(Move(rank, file, rank + direction, file + 1));
+        }
+    }
+
+    // En passant
+    const MoveState* last_move = board.getLastMove();
+    if (last_move != nullptr) {
+        int from_rank = last_move->move.from / 8;
+        int to_rank = last_move->move.to / 8;
+        int to_file = last_move->move.to % 8;
+        const Piece& last_move_piece = board.getPiece(last_move->move.to);
+        if (last_move_piece.type == PieceType::Pawn && std::abs(to_rank - from_rank) == 2) {
+            if (to_rank == rank) {
+                if (to_file == file - 1) {
+                    moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::EnPassant));
+                } else if (to_file == file + 1) {
+                    moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::EnPassant));
+                }
+            }
         }
     }
 }

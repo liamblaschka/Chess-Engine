@@ -36,10 +36,27 @@ Board::Board() {
 }
 
 void Board::makeMove(const Move& move) {
-    move_history.push_back({move, squares[move.to]});
+    switch (move.type) {
+        case MoveType::Normal: {
+            move_history.push_back({move, squares[move.to], move.to});
 
-    squares[move.to] = squares[move.from];
-    squares[move.from] = Piece();
+            squares[move.to] = squares[move.from];
+            squares[move.from] = Piece();
+            break;
+        }
+        case MoveType::EnPassant: {
+            int from_rank = move.from / 8;
+            int to_rank = move.to / 8;
+            int direction = to_rank - from_rank;
+            int captured_square = move.to - (8 * direction);
+            move_history.push_back({move, squares[captured_square], captured_square});
+
+            squares[move.to] = squares[move.from];
+            squares[move.from] = Piece();
+            squares[captured_square] = Piece();
+            break;
+        }
+    }
 
     turn = oppositeColour(turn);
 }
@@ -49,9 +66,18 @@ void Board::undoMove() {
     move_history.pop_back();
 
     squares[previous.move.from] = squares[previous.move.to];
-    squares[previous.move.to] = previous.captured_piece;
+    squares[previous.move.to] = Piece();
+    squares[previous.captured_square] = previous.captured_piece;
 
     turn = oppositeColour(turn);
+}
+
+const MoveState* Board::getLastMove() const {
+    if (move_history.empty()) {
+        return nullptr;
+    }
+
+    return &move_history.back();
 }
 
 bool Board::isKingInCheck(Colour colour) const {

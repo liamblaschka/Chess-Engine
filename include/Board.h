@@ -13,6 +13,7 @@ public:
     Board();
     void makeMove(const Move& move);
     void undoMove();
+    const MoveState* getLastMove() const;
     bool isKingInCheck(Colour colour) const;
     const Piece& getPiece(int square) const;
     const Piece& getPiece(int rank, int file) const;
