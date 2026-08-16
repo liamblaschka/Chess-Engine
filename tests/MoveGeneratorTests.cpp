@@ -471,6 +471,354 @@ void testEnPassantMoves(MoveGenerator& generator) {
     }
 }
 
+void testPawnPromotion(MoveGenerator& generator) {
+    std::cout << "\n--- Pawn Promotion Tests ---\n";
+
+    // White pawn: e7 -> e8
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White}); // a1
+        board.setPiece(7, 7, {PieceType::King, Colour::Black}); // h8
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+
+        auto moves = generator.generateLegalMoves(board);
+
+        bool knight = false;
+        bool bishop = false;
+        bool rook = false;
+        bool queen = false;
+
+        for (const Move& move : moves) {
+            if (move.from == 6 * 8 + 4 &&
+                move.to == 7 * 8 + 4 &&
+                move.type == MoveType::Promotion) {
+
+                if (move.promotion_piece.type == PieceType::Knight)
+                    knight = true;
+
+                if (move.promotion_piece.type == PieceType::Bishop)
+                    bishop = true;
+
+                if (move.promotion_piece.type == PieceType::Rook)
+                    rook = true;
+
+                if (move.promotion_piece.type == PieceType::Queen)
+                    queen = true;
+            }
+        }
+
+        if (knight && bishop && rook && queen) {
+            std::cout << "[PASS] White pawn generates all four promotions\n";
+        } else {
+            std::cout << "[FAIL] White pawn generates all four promotions\n";
+        }
+    }
+
+    // Black pawn: e2 -> e1
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White}); // a1
+        board.setPiece(7, 7, {PieceType::King, Colour::Black}); // h8
+        board.setPiece(1, 4, {PieceType::Pawn, Colour::Black}); // e2
+
+        auto moves = generator.generateLegalMoves(board);
+
+        bool knight = false;
+        bool bishop = false;
+        bool rook = false;
+        bool queen = false;
+
+        for (const Move& move : moves) {
+            if (move.from == 1 * 8 + 4 &&
+                move.to == 0 * 8 + 4 &&
+                move.type == MoveType::Promotion) {
+
+                if (move.promotion_piece.type == PieceType::Knight)
+                    knight = true;
+
+                if (move.promotion_piece.type == PieceType::Bishop)
+                    bishop = true;
+
+                if (move.promotion_piece.type == PieceType::Rook)
+                    rook = true;
+
+                if (move.promotion_piece.type == PieceType::Queen)
+                    queen = true;
+            }
+        }
+
+        if (knight && bishop && rook && queen) {
+            std::cout << "[PASS] Black pawn generates all four promotions\n";
+        } else {
+            std::cout << "[FAIL] Black pawn generates all four promotions\n";
+        }
+    }
+
+    // White pawn: e7 x d8 = promotion
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White}); // a1
+        board.setPiece(7, 7, {PieceType::King, Colour::Black}); // h8
+
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+        board.setPiece(7, 3, {PieceType::Rook, Colour::Black}); // d8
+
+        auto moves = generator.generateLegalMoves(board);
+
+        bool knight = false;
+        bool bishop = false;
+        bool rook = false;
+        bool queen = false;
+
+        for (const Move& move : moves) {
+            if (move.from == 6 * 8 + 4 &&
+                move.to == 7 * 8 + 3 &&
+                move.type == MoveType::Promotion) {
+
+                if (move.promotion_piece.type == PieceType::Knight)
+                    knight = true;
+
+                if (move.promotion_piece.type == PieceType::Bishop)
+                    bishop = true;
+
+                if (move.promotion_piece.type == PieceType::Rook)
+                    rook = true;
+
+                if (move.promotion_piece.type == PieceType::Queen)
+                    queen = true;
+            }
+        }
+
+        if (knight && bishop && rook && queen) {
+            std::cout << "[PASS] White pawn generates all four capture promotions\n";
+        } else {
+            std::cout << "[FAIL] White pawn generates all four capture promotions\n";
+        }
+    }
+
+    // Black pawn: e2 x d1 = promotion
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::Black);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White}); // a1
+        board.setPiece(7, 7, {PieceType::King, Colour::Black}); // h8
+
+        board.setPiece(1, 4, {PieceType::Pawn, Colour::Black}); // e2
+        board.setPiece(0, 3, {PieceType::Rook, Colour::White}); // d1
+
+        auto moves = generator.generateLegalMoves(board);
+
+        bool knight = false;
+        bool bishop = false;
+        bool rook = false;
+        bool queen = false;
+
+        for (const Move& move : moves) {
+            if (move.from == 1 * 8 + 4 &&
+                move.to == 0 * 8 + 3 &&
+                move.type == MoveType::Promotion) {
+
+                if (move.promotion_piece.type == PieceType::Knight)
+                    knight = true;
+
+                if (move.promotion_piece.type == PieceType::Bishop)
+                    bishop = true;
+
+                if (move.promotion_piece.type == PieceType::Rook)
+                    rook = true;
+
+                if (move.promotion_piece.type == PieceType::Queen)
+                    queen = true;
+            }
+        }
+
+        if (knight && bishop && rook && queen) {
+            std::cout << "[PASS] Black pawn generates all four capture promotions\n";
+        } else {
+            std::cout << "[FAIL] Black pawn generates all four capture promotions\n";
+        }
+    }
+
+    // Promotion has correct MoveType and promotion piece
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White}); // a1
+        board.setPiece(7, 7, {PieceType::King, Colour::Black}); // h8
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+
+        auto moves = generator.generateLegalMoves(board);
+
+        bool found = false;
+
+        for (const Move& move : moves) {
+            if (move.from == 6 * 8 + 4 &&
+                move.to == 7 * 8 + 4 &&
+                move.type == MoveType::Promotion &&
+                move.promotion_piece.type == PieceType::Queen &&
+                move.promotion_piece.colour == Colour::White) {
+
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            std::cout << "[PASS] Promotion has correct MoveType and piece\n";
+        } else {
+            std::cout << "[FAIL] Promotion has correct MoveType and piece\n";
+        }
+    }
+
+    // makeMove promotes pawn to queen
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White});
+        board.setPiece(7, 7, {PieceType::King, Colour::Black});
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+
+        board.makeMove(
+            Move(
+                6, 4,
+                7, 4,
+                MoveType::Promotion,
+                Piece(PieceType::Queen, Colour::White)
+            )
+        );
+
+        const Piece& promoted = board.getPiece(7, 4);
+
+        if (promoted.type == PieceType::Queen &&
+            promoted.colour == Colour::White &&
+            board.getPiece(6, 4).type == PieceType::None) {
+
+            std::cout << "[PASS] makeMove promotes pawn to queen\n";
+        } else {
+            std::cout << "[FAIL] makeMove promotes pawn to queen\n";
+        }
+    }
+
+    // Promotion capture replaces captured piece
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White});
+        board.setPiece(7, 7, {PieceType::King, Colour::Black});
+
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+        board.setPiece(7, 3, {PieceType::Rook, Colour::Black}); // d8
+
+        board.makeMove(
+            Move(
+                6, 4,
+                7, 3,
+                MoveType::Promotion,
+                Piece(PieceType::Queen, Colour::White)
+            )
+        );
+
+        const Piece& promoted = board.getPiece(7, 3);
+
+        if (promoted.type == PieceType::Queen &&
+            promoted.colour == Colour::White &&
+            board.getPiece(6, 4).type == PieceType::None) {
+
+            std::cout << "[PASS] Promotion capture replaces captured piece\n";
+        } else {
+            std::cout << "[FAIL] Promotion capture replaces captured piece\n";
+        }
+    }
+
+    // Undo promotion restores pawn
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White});
+        board.setPiece(7, 7, {PieceType::King, Colour::Black});
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+
+        board.makeMove(
+            Move(
+                6, 4,
+                7, 4,
+                MoveType::Promotion,
+                Piece(PieceType::Queen, Colour::White)
+            )
+        );
+
+        board.undoMove();
+
+        const Piece& pawn = board.getPiece(6, 4);
+        const Piece& destination = board.getPiece(7, 4);
+
+        if (pawn.type == PieceType::Pawn &&
+            pawn.colour == Colour::White &&
+            destination.type == PieceType::None) {
+
+            std::cout << "[PASS] Undo promotion restores pawn\n";
+        } else {
+            std::cout << "[FAIL] Undo promotion restores pawn\n";
+        }
+    }
+
+    // Undo promotion capture restores board
+    {
+        Board board;
+        board.clear();
+        board.setTurn(Colour::White);
+
+        board.setPiece(0, 0, {PieceType::King, Colour::White});
+        board.setPiece(7, 7, {PieceType::King, Colour::Black});
+
+        board.setPiece(6, 4, {PieceType::Pawn, Colour::White}); // e7
+        board.setPiece(7, 3, {PieceType::Rook, Colour::Black}); // d8
+
+        board.makeMove(
+            Move(
+                6, 4,
+                7, 3,
+                MoveType::Promotion,
+                Piece(PieceType::Queen, Colour::White)
+            )
+        );
+
+        board.undoMove();
+
+        const Piece& pawn = board.getPiece(6, 4);
+        const Piece& captured = board.getPiece(7, 3);
+
+        if (pawn.type == PieceType::Pawn &&
+            pawn.colour == Colour::White &&
+            captured.type == PieceType::Rook &&
+            captured.colour == Colour::Black) {
+
+            std::cout << "[PASS] Undo promotion capture restores board\n";
+        } else {
+            std::cout << "[FAIL] Undo promotion capture restores board\n";
+        }
+    }
+}
+
 void testKnightMoves(MoveGenerator& generator) {
     std::cout << "\n--- Knight Tests ---\n";
 
@@ -1370,6 +1718,7 @@ int main() {
 
     testPawnMoves(generator);
     testEnPassantMoves(generator);
+    testPawnPromotion(generator);
     testKnightMoves(generator);
     testBishopMoves(generator);
     testRookMoves(generator);

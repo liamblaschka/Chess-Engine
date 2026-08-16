@@ -23,13 +23,20 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
 
     // Foward move
     if (board.getPiece(rank + direction, file).type == PieceType::None) {
-        moves.push_back(Move(rank, file, rank + direction, file));
+        if (rank + direction > 0 && rank + direction < 7) {
+            moves.push_back(Move(rank, file, rank + direction, file));
 
-        // Double move from starting rank
-        if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
-            if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
-                moves.push_back(Move(rank, file, rank + (direction * 2), file));
+            // Double move from starting rank
+            if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
+                if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
+                    moves.push_back(Move(rank, file, rank + (direction * 2), file));
+                }
             }
+        } else {
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Queen, turn)));
         }
     }
 
@@ -37,7 +44,14 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     if (file - 1 >= 0) {
         const Piece& target = board.getPiece(rank + direction, file - 1);
         if (target.colour != Colour::None && target.colour != turn) {
-            moves.push_back(Move(rank, file, rank + direction, file - 1));
+            if (rank + direction > 0 && rank + direction < 7) {
+                moves.push_back(Move(rank, file, rank + direction, file - 1));
+            } else {
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+            }
         }
     }
     
@@ -45,7 +59,14 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     if (file + 1 < 8) {
         const Piece& target = board.getPiece(rank + direction, file + 1);
         if (target.colour != Colour::None && target.colour != turn) {
-            moves.push_back(Move(rank, file, rank + direction, file + 1));
+            if (rank + direction > 0 && rank + direction < 7) {
+                moves.push_back(Move(rank, file, rank + direction, file + 1));
+            } else {
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+            }
         }
     }
 

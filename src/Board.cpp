@@ -111,6 +111,13 @@ void Board::makeMove(const Move& move) {
             squares[captured_square] = Piece();
             break;
         }
+        case MoveType::Promotion: {
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+
+            squares[move.to] = move.promotion_piece;
+            squares[move.from] = Piece();
+            break;
+        }
     }
 
     // Update castling rights
@@ -182,6 +189,10 @@ void Board::undoMove() {
             squares[previous.move.from] = squares[previous.move.to];
             squares[previous.move.to] = Piece();
             squares[previous.captured_square] = previous.captured_piece;
+            break;
+        case MoveType::Promotion:
+            squares[previous.move.from] = Piece(PieceType::Pawn, previous.move.promotion_piece.colour);
+            squares[previous.move.to] = previous.captured_piece;
             break;
     }
     
