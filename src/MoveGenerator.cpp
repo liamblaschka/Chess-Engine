@@ -200,3 +200,22 @@ std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
 
     return moves;
 }
+
+std::vector<Move> MoveGenerator::generateLegalMoves(Board& board) {
+    std::vector<Move> legal_moves;
+    std::vector<Move> pseudo_legal_moves = generatePseudoLegalMoves(board);
+
+    const Colour turn = board.getTurn();
+
+    for (const auto& move : pseudo_legal_moves) {
+        board.makeMove(move);
+
+        if (!board.isKingInCheck(turn)) {
+            legal_moves.push_back(move);
+        }
+
+        board.undoMove();
+    }
+
+    return legal_moves;
+}
