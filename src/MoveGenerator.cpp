@@ -2,6 +2,8 @@
 #include "Piece.h"
 #include "Move.h"
 #include "Board.h"
+#include "SquareConstants.h"
+#include "CastleRights.h"
 #include <vector>
 #include <cmath>
 
@@ -180,6 +182,48 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
         const Piece& target = board.getPiece(target_rank, target_file);
         if (target.type == PieceType::None || target.colour != turn) {
             moves.push_back(Move(rank, file, target_rank, target_file));
+        }
+    }
+
+    // Castle
+    if (!board.isKingInCheck(turn)) {
+        Colour opponent = oppositeColour(turn);
+        CastleRights castle_rights = board.getCastleRights(turn);
+        if (castle_rights.queen_side) {
+            if (turn == Colour::White) {
+                if (board.getPiece(Square::B1).type == PieceType::None
+                    && board.getPiece(Square::C1).type == PieceType::None
+                    && board.getPiece(Square::D1).type == PieceType::None
+                    && !board.isSquareAttacked(Square::D1, opponent))
+                {
+                    moves.push_back(Move(Square::E1, Square::C1, MoveType::Castle));
+                }
+            } else {
+                if (board.getPiece(Square::B8).type == PieceType::None
+                    && board.getPiece(Square::C8).type == PieceType::None
+                    && board.getPiece(Square::D8).type == PieceType::None
+                    && !board.isSquareAttacked(Square::D8, opponent))
+                {
+                    moves.push_back(Move(Square::E8, Square::C8, MoveType::Castle));
+                }
+            }
+        }
+        if (castle_rights.king_side) {
+            if (turn == Colour::White) {
+                if (board.getPiece(Square::F1).type == PieceType::None
+                    && board.getPiece(Square::G1).type == PieceType::None
+                    && !board.isSquareAttacked(Square::F1, opponent))
+                {
+                    moves.push_back(Move(Square::E1, Square::G1, MoveType::Castle));
+                }
+            } else {
+                if (board.getPiece(Square::F8).type == PieceType::None
+                    && board.getPiece(Square::G8).type == PieceType::None
+                    && !board.isSquareAttacked(Square::F8, opponent))
+                {
+                    moves.push_back(Move(Square::E8, Square::G8, MoveType::Castle));
+                }
+            }
         }
     }
 }

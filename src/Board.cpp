@@ -1,5 +1,6 @@
 #include "Board.h"
 #include "Piece.h"
+#include "SquareConstants.h"
 #include <array>
 #include <iostream>
 
@@ -33,15 +34,69 @@ Board::Board() {
     for (int i = 48; i < 56; i++) {
         squares[i] = {PieceType::Pawn, Colour::Black};
     }
+
+    turn = Colour::White;
+    white_castle_rights = {true, true};
+    black_castle_rights = {true, true};
 }
 
 void Board::makeMove(const Move& move) {
+    // Move
     switch (move.type) {
         case MoveType::Normal: {
-            move_history.push_back({move, squares[move.to], move.to});
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+
+            // Castle rights if rook is captured
+            const Piece& captured_piece = squares[move.to];
+            if (captured_piece.type == PieceType::Rook) {
+                if (captured_piece.colour == Colour::White) {
+                    if (move.to == Square::A1) {
+                        white_castle_rights.queen_side = false;
+                    } else if (move.to == Square::H1) {
+                        white_castle_rights.king_side = false;
+                    }
+                } else if (captured_piece.colour == Colour::Black) {
+                    if (move.to == Square::A8) {
+                        black_castle_rights.queen_side = false;
+                    } else if (move.to == Square::H8) {
+                        black_castle_rights.king_side = false;
+                    }
+                }
+            }
 
             squares[move.to] = squares[move.from];
             squares[move.from] = Piece();
+            break;
+        }
+        case MoveType::Castle: {
+            Colour colour = squares[move.from].colour;
+
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+
+            squares[move.to] = squares[move.from];
+            squares[move.from] = Piece();
+
+            if (colour == Colour::White) {
+                if (move.to == Square::C1) {
+                    // Queen-side
+                    squares[Square::D1] = squares[Square::A1];
+                    squares[Square::A1] = Piece();
+                } else {
+                    // King-side
+                    squares[Square::F1] = squares[Square::H1];
+                    squares[Square::H1] = Piece();
+                }
+            } else {
+                if (move.to == Square::C8) {
+                    // Queen-side
+                    squares[Square::D8] = squares[Square::A8];
+                    squares[Square::A8] = Piece();
+                } else {
+                    // King-side
+                    squares[Square::F8] = squares[Square::H8];
+                    squares[Square::H8] = Piece();
+                }
+            }
             break;
         }
         case MoveType::EnPassant: {
@@ -49,12 +104,38 @@ void Board::makeMove(const Move& move) {
             int to_rank = move.to / 8;
             int direction = to_rank - from_rank;
             int captured_square = move.to - (8 * direction);
-            move_history.push_back({move, squares[captured_square], captured_square});
+            move_history.push_back({move, squares[captured_square], captured_square, white_castle_rights, black_castle_rights});
 
             squares[move.to] = squares[move.from];
             squares[move.from] = Piece();
             squares[captured_square] = Piece();
             break;
+        }
+    }
+
+    // Update castling rights
+    const Piece& piece = squares[move.to];
+    if (piece.type == PieceType::King) {
+        if (piece.colour == Colour::White) {
+            white_castle_rights.queen_side = false;
+            white_castle_rights.king_side = false;
+        } else {
+            black_castle_rights.queen_side = false;
+            black_castle_rights.king_side = false;
+        }
+    } else if (piece.type == PieceType::Rook) {
+        if (piece.colour == Colour::White && (move.from == Square::A1 || move.from == Square::H1)) {
+            if (move.from == Square::A1) {
+                white_castle_rights.queen_side = false;
+            } else if (move.from == Square::H1) {
+                white_castle_rights.king_side = false;
+            }
+        } else if (move.from == Square::A8 || move.from == Square::H8) {
+            if (move.from == Square::A8) {
+                black_castle_rights.queen_side = false;
+            } else if (move.from == Square::H8) {
+                black_castle_rights.king_side = false;
+            }
         }
     }
 
@@ -65,9 +146,47 @@ void Board::undoMove() {
     MoveState previous = move_history.back();
     move_history.pop_back();
 
-    squares[previous.move.from] = squares[previous.move.to];
-    squares[previous.move.to] = Piece();
-    squares[previous.captured_square] = previous.captured_piece;
+    switch (previous.move.type) {
+        case MoveType::Normal:
+            squares[previous.move.from] = squares[previous.move.to];
+            squares[previous.move.to] = previous.captured_piece;
+            break;
+        case MoveType::Castle:
+            if (squares[previous.move.to].colour == Colour::White) {
+                if (previous.move.to == Square::C1) {
+                    // Queen-side
+                    squares[Square::A1] = squares[Square::D1];
+                    squares[Square::D1] = Piece();
+                } else {
+                    // King-side
+                    squares[Square::H1] = squares[Square::F1];
+                    squares[Square::F1] = Piece();
+                }
+            } else {
+                if (previous.move.to == Square::C8) {
+                    // Queen-side
+                    squares[Square::A8] = squares[Square::D8];
+                    squares[Square::D8] = Piece();
+                } else {
+                    // King-side
+                    squares[Square::H8] = squares[Square::F8];
+                    squares[Square::F8] = Piece();
+                }
+            }
+
+            squares[previous.move.from] = squares[previous.move.to];
+            squares[previous.move.to] = Piece();
+
+            break;
+        case MoveType::EnPassant:
+            squares[previous.move.from] = squares[previous.move.to];
+            squares[previous.move.to] = Piece();
+            squares[previous.captured_square] = previous.captured_piece;
+            break;
+    }
+    
+    white_castle_rights = previous.white_castle_rights;
+    black_castle_rights = previous.black_castle_rights;
 
     turn = oppositeColour(turn);
 }
@@ -78,6 +197,143 @@ const MoveState* Board::getLastMove() const {
     }
 
     return &move_history.back();
+}
+
+bool Board::isSquareAttacked(int rank, int file, Colour attacking_colour) const {
+    // Pawn attack
+    int pawn_rank;
+    if (attacking_colour == Colour::White) {
+        pawn_rank = rank - 1;
+    } else {
+        pawn_rank = rank + 1;
+    }
+    if (pawn_rank >= 0 && pawn_rank < 8) {
+        if (file - 1 >= 0) {
+            const Piece& attacker = getPiece(pawn_rank, file - 1);
+            if (attacker.colour == attacking_colour && attacker.type == PieceType::Pawn) {
+                return true;
+            }
+        }
+        if (file + 1 < 8) {
+            const Piece& attacker = getPiece(pawn_rank, file + 1);
+            if (attacker.colour == attacking_colour && attacker.type == PieceType::Pawn) {
+                return true;
+            }
+        }
+    }
+
+    // Knight attack
+    const int knight_positions[8][2] = {
+        {rank + 2, file - 1},
+        {rank + 2, file + 1},
+        {rank + 1, file + 2},
+        {rank - 1, file + 2},
+        {rank - 2, file + 1},
+        {rank - 2, file - 1},
+        {rank - 1, file - 2},
+        {rank + 1, file - 2}
+    };
+    for (const auto& position : knight_positions) {
+        int knight_rank = position[0];
+        int knight_file = position[1];
+
+        if (knight_rank < 0 || knight_file < 0 || knight_rank >= 8 || knight_file >= 8) {
+            continue;
+        }
+
+        const Piece& attacker = getPiece(knight_rank, knight_file);
+        if (attacker.colour == attacking_colour && attacker.type == PieceType::Knight) {
+            return true;
+        }
+    }
+
+    // Bishop, Queen attack
+    const int bishop_directions[4][2] = {
+        {1, -1},
+        {1, 1},
+        {-1, 1},
+        {-1, -1}
+    };
+    for (const auto& direction : bishop_directions) {
+        int rank_direction = direction[0];
+        int file_direction = direction[1];
+
+        int attacker_rank = rank + rank_direction;
+        int attacker_file = file + file_direction;
+        while (attacker_rank >= 0 && attacker_file >= 0 && attacker_rank < 8 && attacker_file < 8) {
+            const Piece& attacker = getPiece(attacker_rank, attacker_file);
+            if (attacker.type != PieceType::None) {
+                if (attacker.colour == attacking_colour && (attacker.type == PieceType::Bishop || attacker.type == PieceType::Queen)) {
+                    return true;
+                }
+                break;
+            }
+
+            attacker_rank += rank_direction;
+            attacker_file += file_direction; 
+        }
+    }
+
+    // Rook, Queen attack
+    const int rook_directions[4][2] = {
+        {1, 0},
+        {0, 1},
+        {-1, 0},
+        {0, -1}
+    };
+    for (const auto& direction : rook_directions) {
+        int rank_direction = direction[0];
+        int file_direction = direction[1];
+
+        int attacker_rank = rank + rank_direction;
+        int attacker_file = file + file_direction;
+        while (attacker_rank >= 0 && attacker_file >= 0 && attacker_rank < 8 && attacker_file < 8) {
+            const Piece& attacker = getPiece(attacker_rank, attacker_file);
+            if (attacker.type != PieceType::None) {
+                if (attacker.colour == attacking_colour && (attacker.type == PieceType::Rook || attacker.type == PieceType::Queen)) {
+                    return true;
+                }
+                break;
+            }
+
+            attacker_rank += rank_direction;
+            attacker_file += file_direction; 
+        }
+    }
+
+    // King attack
+    const int king_positions[8][2] = {
+        {rank + 1, file},
+        {rank, file + 1},
+        {rank - 1, file},
+        {rank, file - 1},
+        {rank + 1, file - 1},
+        {rank + 1, file + 1},
+        {rank - 1, file + 1},
+        {rank - 1, file - 1}
+    };
+    for (const auto& position : king_positions) {
+        int king_rank = position[0];
+        int king_file = position[1];
+
+        if (king_rank < 0 || king_file < 0 || king_rank >= 8 || king_file >= 8) {
+            continue;
+        }
+
+        const Piece& attacker = getPiece(king_rank, king_file);
+        if (attacker.colour == attacking_colour && attacker.type == PieceType::King) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Board::isSquareAttacked(int square, Colour attacking_colour) const {
+    int rank = square / 8;
+    int file = square % 8;
+
+    return isSquareAttacked(rank, file, attacking_colour);
 }
 
 bool Board::isKingInCheck(Colour colour) const {
@@ -101,144 +357,28 @@ bool Board::isKingInCheck(Colour colour) const {
         }
     }
 
-    // Pawn check
-    int pawn_rank;
-    if (opponent == Colour::White) {
-        pawn_rank = king_rank - 1;
-    } else {
-        pawn_rank = king_rank + 1;
-    }
-    if (pawn_rank >= 0 && pawn_rank < 8) {
-        if (king_file - 1 >= 0) {
-            const Piece& attacker = getPiece(pawn_rank, king_file - 1);
-            if (attacker.colour == opponent && attacker.type == PieceType::Pawn) {
-                return true;
-            }
-        }
-        if (king_file + 1 < 8) {
-            const Piece& attacker = getPiece(pawn_rank, king_file + 1);
-            if (attacker.colour == opponent && attacker.type == PieceType::Pawn) {
-                return true;
-            }
-        }
-    }
-
-    // Knight check
-    const int knight_positions[8][2] = {
-        {king_rank + 2, king_file - 1},
-        {king_rank + 2, king_file + 1},
-        {king_rank + 1, king_file + 2},
-        {king_rank - 1, king_file + 2},
-        {king_rank - 2, king_file + 1},
-        {king_rank - 2, king_file - 1},
-        {king_rank - 1, king_file - 2},
-        {king_rank + 1, king_file - 2}
-    };
-    for (const auto& position : knight_positions) {
-        int knight_rank = position[0];
-        int knight_file = position[1];
-
-        if (knight_rank < 0 || knight_file < 0 || knight_rank >= 8 || knight_file >= 8) {
-            continue;
-        }
-
-        const Piece& attacker = getPiece(knight_rank, knight_file);
-        if (attacker.colour == opponent && attacker.type == PieceType::Knight) {
-            return true;
-        }
-    }
-
-    // Bishop, Queen check
-    const int bishop_directions[4][2] = {
-        {1, -1},
-        {1, 1},
-        {-1, 1},
-        {-1, -1}
-    };
-    for (const auto& direction : bishop_directions) {
-        int rank_direction = direction[0];
-        int file_direction = direction[1];
-
-        int attacker_rank = king_rank + rank_direction;
-        int attacker_file = king_file + file_direction;
-        while (attacker_rank >= 0 && attacker_file >= 0 && attacker_rank < 8 && attacker_file < 8) {
-            const Piece& attacker = getPiece(attacker_rank, attacker_file);
-            if (attacker.type != PieceType::None) {
-                if (attacker.colour == opponent && (attacker.type == PieceType::Bishop || attacker.type == PieceType::Queen)) {
-                    return true;
-                }
-                break;
-            }
-
-            attacker_rank += rank_direction;
-            attacker_file += file_direction; 
-        }
-    }
-
-    // Rook, Queen check
-    const int rook_directions[4][2] = {
-        {1, 0},
-        {0, 1},
-        {-1, 0},
-        {0, -1}
-    };
-    for (const auto& direction : rook_directions) {
-        int rank_direction = direction[0];
-        int file_direction = direction[1];
-
-        int attacker_rank = king_rank + rank_direction;
-        int attacker_file = king_file + file_direction;
-        while (attacker_rank >= 0 && attacker_file >= 0 && attacker_rank < 8 && attacker_file < 8) {
-            const Piece& attacker = getPiece(attacker_rank, attacker_file);
-            if (attacker.type != PieceType::None) {
-                if (attacker.colour == opponent && (attacker.type == PieceType::Rook || attacker.type == PieceType::Queen)) {
-                    return true;
-                }
-                break;
-            }
-
-            attacker_rank += rank_direction;
-            attacker_file += file_direction; 
-        }
-    }
-
-    // Opponent king check
-    const int opponent_king_positions[8][2] = {
-        {king_rank + 1, king_file},
-        {king_rank, king_file + 1},
-        {king_rank - 1, king_file},
-        {king_rank, king_file - 1},
-        {king_rank + 1, king_file - 1},
-        {king_rank + 1, king_file + 1},
-        {king_rank - 1, king_file + 1},
-        {king_rank - 1, king_file - 1}
-    };
-    for (const auto& position : opponent_king_positions) {
-        int opponent_king_rank = position[0];
-        int opponent_king_file = position[1];
-
-        if (opponent_king_rank < 0 || opponent_king_file < 0 || opponent_king_rank >= 8 || opponent_king_file >= 8) {
-            continue;
-        }
-
-        const Piece& attacker = getPiece(opponent_king_rank, opponent_king_file);
-        if (attacker.colour == opponent && attacker.type == PieceType::King) {
-            return true;
-        }
-    }
-
-    return false;
+    return isSquareAttacked(king_rank, king_file, oppositeColour(colour));   
 }
 
 const Piece& Board::getPiece(int square) const { return squares[square]; }
 
 const Piece& Board::getPiece(int rank, int file) const { return squares[rank * 8 + file]; }
 
+void Board::setPiece(int square, Piece piece) { squares[square] = piece; }
+
 void Board::setPiece(int rank, int file, Piece piece) { squares[rank * 8 + file] = piece; }
 
 Colour Board::getTurn() const { return turn; }
 
 void Board::setTurn(Colour colour) { turn = colour; }
+
+CastleRights Board::getCastleRights(Colour colour) const {
+    if (colour == Colour::White) {
+        return white_castle_rights;
+    } else {
+        return black_castle_rights;
+    }
+}
 
 void Board::clear() {
     squares.fill(Piece());
