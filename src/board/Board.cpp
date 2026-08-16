@@ -35,6 +35,20 @@ Board::Board() {
     }
 }
 
+const Piece& Board::getPiece(int square) const { return squares[square]; }
+
+const Piece& Board::getPiece(int rank, int file) const { return squares[rank * 8 + file]; }
+
+void Board::setPiece(int rank, int file, Piece piece) { squares[rank * 8 + file] = piece; }
+
+Colour Board::getTurn() const { return turn; }
+
+void Board::setTurn(Colour colour) { turn = colour; }
+
+void Board::clear() {
+    squares.fill(Piece());
+}
+
 void Board::draw() {
     for (int rank = 7; rank >= 0; rank--) {
         std::cout << (8 - rank) << " ";
