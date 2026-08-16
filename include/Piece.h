@@ -23,3 +23,5 @@ struct Piece {
     Piece() : type(PieceType::None), colour(Colour::None) {}
     Piece(PieceType type, Colour colour) : type(type), colour(colour) {}
 };
+
+Colour oppositeColour(Colour colour);

@@ -2,7 +2,10 @@
 #include "Piece.h"
 #include "Move.h"
 #include "Board.h"
+#include "SquareConstants.h"
+#include "CastleRights.h"
 #include <vector>
+#include <cmath>
 
 MoveGenerator::MoveGenerator() {}
 
@@ -20,13 +23,20 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
 
     // Foward move
     if (board.getPiece(rank + direction, file).type == PieceType::None) {
-        moves.push_back(Move(rank, file, rank + direction, file));
+        if (rank + direction > 0 && rank + direction < 7) {
+            moves.push_back(Move(rank, file, rank + direction, file));
 
-        // Double move from starting rank
-        if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
-            if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
-                moves.push_back(Move(rank, file, rank + (direction * 2), file));
+            // Double move from starting rank
+            if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
+                if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
+                    moves.push_back(Move(rank, file, rank + (direction * 2), file));
+                }
             }
+        } else {
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Queen, turn)));
         }
     }
 
@@ -34,7 +44,14 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     if (file - 1 >= 0) {
         const Piece& target = board.getPiece(rank + direction, file - 1);
         if (target.colour != Colour::None && target.colour != turn) {
-            moves.push_back(Move(rank, file, rank + direction, file - 1));
+            if (rank + direction > 0 && rank + direction < 7) {
+                moves.push_back(Move(rank, file, rank + direction, file - 1));
+            } else {
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+            }
         }
     }
     
@@ -42,7 +59,32 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     if (file + 1 < 8) {
         const Piece& target = board.getPiece(rank + direction, file + 1);
         if (target.colour != Colour::None && target.colour != turn) {
-            moves.push_back(Move(rank, file, rank + direction, file + 1));
+            if (rank + direction > 0 && rank + direction < 7) {
+                moves.push_back(Move(rank, file, rank + direction, file + 1));
+            } else {
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+            }
+        }
+    }
+
+    // En passant
+    const MoveState* last_move = board.getLastMove();
+    if (last_move != nullptr) {
+        int from_rank = last_move->move.from / 8;
+        int to_rank = last_move->move.to / 8;
+        int to_file = last_move->move.to % 8;
+        const Piece& last_move_piece = board.getPiece(last_move->move.to);
+        if (last_move_piece.type == PieceType::Pawn && std::abs(to_rank - from_rank) == 2) {
+            if (to_rank == rank) {
+                if (to_file == file - 1) {
+                    moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::EnPassant));
+                } else if (to_file == file + 1) {
+                    moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::EnPassant));
+                }
+            }
         }
     }
 }
@@ -163,6 +205,48 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
             moves.push_back(Move(rank, file, target_rank, target_file));
         }
     }
+
+    // Castle
+    if (!board.isKingInCheck(turn)) {
+        Colour opponent = oppositeColour(turn);
+        CastleRights castle_rights = board.getCastleRights(turn);
+        if (castle_rights.queen_side) {
+            if (turn == Colour::White) {
+                if (board.getPiece(Square::B1).type == PieceType::None
+                    && board.getPiece(Square::C1).type == PieceType::None
+                    && board.getPiece(Square::D1).type == PieceType::None
+                    && !board.isSquareAttacked(Square::D1, opponent))
+                {
+                    moves.push_back(Move(Square::E1, Square::C1, MoveType::Castle));
+                }
+            } else {
+                if (board.getPiece(Square::B8).type == PieceType::None
+                    && board.getPiece(Square::C8).type == PieceType::None
+                    && board.getPiece(Square::D8).type == PieceType::None
+                    && !board.isSquareAttacked(Square::D8, opponent))
+                {
+                    moves.push_back(Move(Square::E8, Square::C8, MoveType::Castle));
+                }
+            }
+        }
+        if (castle_rights.king_side) {
+            if (turn == Colour::White) {
+                if (board.getPiece(Square::F1).type == PieceType::None
+                    && board.getPiece(Square::G1).type == PieceType::None
+                    && !board.isSquareAttacked(Square::F1, opponent))
+                {
+                    moves.push_back(Move(Square::E1, Square::G1, MoveType::Castle));
+                }
+            } else {
+                if (board.getPiece(Square::F8).type == PieceType::None
+                    && board.getPiece(Square::G8).type == PieceType::None
+                    && !board.isSquareAttacked(Square::F8, opponent))
+                {
+                    moves.push_back(Move(Square::E8, Square::G8, MoveType::Castle));
+                }
+            }
+        }
+    }
 }
 
 std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
@@ -199,4 +283,23 @@ std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
     }
 
     return moves;
+}
+
+std::vector<Move> MoveGenerator::generateLegalMoves(Board& board) {
+    std::vector<Move> legal_moves;
+    std::vector<Move> pseudo_legal_moves = generatePseudoLegalMoves(board);
+
+    const Colour turn = board.getTurn();
+
+    for (const auto& move : pseudo_legal_moves) {
+        board.makeMove(move);
+
+        if (!board.isKingInCheck(turn)) {
+            legal_moves.push_back(move);
+        }
+
+        board.undoMove();
+    }
+
+    return legal_moves;
 }

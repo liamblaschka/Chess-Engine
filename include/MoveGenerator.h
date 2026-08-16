@@ -16,4 +16,5 @@ private:
 public:
     MoveGenerator();
     std::vector<Move> generatePseudoLegalMoves(const Board& board);
+    std::vector<Move> generateLegalMoves(Board& board);
 };
