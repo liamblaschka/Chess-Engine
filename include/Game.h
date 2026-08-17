@@ -20,7 +20,9 @@ private:
     Board board;
     MoveGenerator move_generator;
     std::unordered_map<std::string, int> positions;
+    int halfmove_clock = 0;
 public:
     void trackPosition(const std::vector<Move>& legal_moves);
     GameState getGameState(const std::vector<Move>& legal_moves) const;
+    void makeMove(const Move& move);
 };

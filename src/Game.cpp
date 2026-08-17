@@ -27,9 +27,25 @@ GameState Game::getGameState(const std::vector<Move>& legal_moves) const {
         return GameState::Draw;
     }
 
+    if (halfmove_clock >= 100) {
+        return GameState::Draw;
+    }
+
     if (in_check) {
         return GameState::Check;
     }
 
     return GameState::Playing;
+}
+
+void Game::makeMove(const Move& move) {
+    const Piece& moving_piece = board.getPiece(move.from);
+    const Piece& captured_piece = board.getPiece(move.to);
+    if (moving_piece.type == PieceType::Pawn || captured_piece.type != PieceType::None || move.type == MoveType::EnPassant) {
+        halfmove_clock = 0;
+    } else {
+        halfmove_clock++;
+    }
+
+    board.makeMove(move);
 }
