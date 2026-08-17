@@ -12,7 +12,9 @@ enum class GameState {
     Check,
     Checkmate,
     Stalemate,
-    Draw
+    DrawThreefoldRepetition,
+    DrawFiftyMoveRule,
+    DrawInsufficientMaterial
 };
 
 class Game {

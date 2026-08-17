@@ -12,7 +12,7 @@ GameState Game::getGameState(const std::vector<Move>& legal_moves) const {
 
     auto position = positions.find(board.getPositionKey(legal_moves));
     if (position != positions.end() && position->second >= 3) {
-        return GameState::Draw;
+        return GameState::DrawThreefoldRepetition;
     }
 
     bool in_check = board.isKingInCheck(turn);
@@ -24,11 +24,11 @@ GameState Game::getGameState(const std::vector<Move>& legal_moves) const {
     }
 
     if (board.isInsufficientMaterial()) {
-        return GameState::Draw;
+        return GameState::DrawInsufficientMaterial;
     }
 
     if (halfmove_clock >= 100) {
-        return GameState::Draw;
+        return GameState::DrawFiftyMoveRule;
     }
 
     if (in_check) {
