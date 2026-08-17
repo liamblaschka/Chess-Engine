@@ -4,6 +4,8 @@
 #include "Move.h"
 #include "CastleRights.h"
 #include <array>
+#include <vector>
+#include <string>
 
 class Board {
 private:
@@ -20,6 +22,8 @@ public:
     bool isSquareAttacked(int rank, int file, Colour opponent) const;
     bool isSquareAttacked(int square, Colour attacking_colour) const;
     bool isKingInCheck(Colour colour) const;
+    bool isInsufficientMaterial() const;
+    std::string getPositionKey(const std::vector<Move>& legal_moves) const;
     const Piece& getPiece(int square) const;
     const Piece& getPiece(int rank, int file) const;
     void setPiece(int square, Piece piece);

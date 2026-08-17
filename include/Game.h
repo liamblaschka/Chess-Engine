@@ -4,6 +4,8 @@
 #include "MoveGenerator.h"
 #include "Board.h"
 #include <vector>
+#include <string>
+#include <unordered_map>
 
 enum class GameState {
     Playing,
@@ -17,7 +19,8 @@ class Game {
 private:
     Board board;
     MoveGenerator move_generator;
-    GameState getGameState(const std::vector<Move>& legal_moves) const;
+    std::unordered_map<std::string, int> positions;
 public:
-
+    void trackPosition(const std::vector<Move>& legal_moves);
+    GameState getGameState(const std::vector<Move>& legal_moves) const;
 };
