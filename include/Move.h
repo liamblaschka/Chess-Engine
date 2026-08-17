@@ -16,6 +16,8 @@ struct Move {
     MoveType type;
     Piece promotion_piece;
 
+    Move() : from(-1), to(-1) {}
+
     Move(int from_square, int to_square, MoveType type = MoveType::Normal, Piece promotion_piece = Piece())
         : from(from_square), to(to_square), type(type), promotion_piece(promotion_piece) {}
 

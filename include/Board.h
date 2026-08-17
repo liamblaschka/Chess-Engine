@@ -31,6 +31,8 @@ public:
     Colour getTurn() const;
     void setTurn(Colour colour);
     CastleRights getCastleRights(Colour colour) const;
+    void setCastleRights(Colour colour, CastleRights rights);
+    const std::array<Piece, 64>& getSquares() const;
     void clear();
     void draw();
 };

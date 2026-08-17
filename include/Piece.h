@@ -28,16 +28,22 @@ struct Piece {
         switch (type) {
             case PieceType::Pawn:
                 symbol = 'p';
+                break;
             case PieceType::Knight:
                 symbol = 'n';
+                break;
             case PieceType::Bishop:
                 symbol = 'b';
+                break;
             case PieceType::Rook:
                 symbol = 'r';
+                break;
             case PieceType::Queen:
                 symbol = 'q';
+                break;
             case PieceType::King:
                 symbol = 'k';
+                break;
             case PieceType::None:
                 return ' ';
         }

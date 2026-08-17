@@ -528,9 +528,19 @@ CastleRights Board::getCastleRights(Colour colour) const {
     }
 }
 
+void Board::setCastleRights(Colour colour, CastleRights rights) {
+    if (colour == Colour::White) {
+        white_castle_rights = rights;
+    } else if (colour == Colour::Black) {
+        black_castle_rights = rights;
+    }
+}
+
 void Board::clear() {
     squares.fill(Piece());
 }
+
+const std::array<Piece, 64>& Board::getSquares() const { return squares; }
 
 void Board::draw() {
     for (int rank = 7; rank >= 0; rank--) {
