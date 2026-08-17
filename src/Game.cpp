@@ -85,6 +85,8 @@ void Game::undoMove() {
 
 Colour Game::getTurn() const { return board.getTurn(); }
 
+Board& Game::getBoard() { return board; }
+
 const Board& Game::getBoard() const { return board; }
 
 void Game::setPosition(const std::string& fen) {

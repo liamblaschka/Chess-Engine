@@ -5,8 +5,9 @@
 #include <array>
 #include <vector>
 #include <limits>
+#include <algorithm>
 
-int Search::maximise(Game& game, int depth) {
+int Search::maximise(Game& game, int depth, int alpha, int beta) {
     int best_score = std::numeric_limits<int>::min();
 
     std::vector<Move> moves = game.getLegalMoves();
@@ -24,19 +25,20 @@ int Search::maximise(Game& game, int depth) {
 
     for (const Move& move : moves) {
         game.makeMove(move);
-
-        int score = minimise(game, depth + 1);
-        if (score > best_score) {
-            best_score = score;
-        }
-
+        best_score = std::max(best_score, minimise(game, depth + 1, alpha, beta));
         game.undoMove();
+
+        if (best_score >= beta) {
+            return best_score;
+        }
+        alpha = std::max(alpha, best_score);
+
     }
 
     return best_score;
 }
 
-int Search::minimise(Game& game, int depth) {
+int Search::minimise(Game& game, int depth, int alpha, int beta) {
     int best_score = std::numeric_limits<int>::max();
 
     std::vector<Move> moves = game.getLegalMoves();
@@ -54,13 +56,14 @@ int Search::minimise(Game& game, int depth) {
 
     for (const Move& move : moves) {
         game.makeMove(move);
-
-        int score = maximise(game, depth + 1);
-        if (score < best_score) {
-            best_score = score;
-        }
-
+        best_score = std::min(best_score, maximise(game, depth + 1, alpha, beta));
         game.undoMove();
+
+        if (best_score <= alpha) {
+            return best_score;
+        }
+        beta = std::min(beta, best_score);
+
     }
 
     return best_score;
@@ -69,16 +72,19 @@ int Search::minimise(Game& game, int depth) {
 Move Search::minimax(Game& game) {
     Move best_move;
     std::vector<Move> moves = game.getLegalMoves();
+    int alpha = std::numeric_limits<int>::min();
+    int beta = std::numeric_limits<int>::max();
     if (game.getTurn() == Colour::White) {
         int best_score = std::numeric_limits<int>::min();
         for (const Move& move : moves) {
             game.makeMove(move);
 
-            int score = minimise(game, 1);
+            int score = minimise(game, 1, alpha, beta);
             if (score > best_score) {
                 best_score = score;
                 best_move = move;
             }
+            alpha = std::max(alpha, best_score);
 
             game.undoMove();
         }
@@ -87,11 +93,12 @@ Move Search::minimax(Game& game) {
         for (const Move& move : moves) {
             game.makeMove(move);
 
-            int score = maximise(game, 1);
+            int score = maximise(game, 1, alpha, beta);
             if (score < best_score) {
                 best_score = score;
                 best_move = move;
             }
+            beta = std::min(beta, best_score);
 
             game.undoMove();
         }

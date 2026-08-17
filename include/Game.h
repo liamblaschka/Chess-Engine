@@ -36,6 +36,7 @@ public:
     void makeMove(const Move& move);
     void undoMove();
     Colour getTurn() const;
+    Board& getBoard();
     const Board& getBoard() const;
 
     void setPosition(const std::string& fen);
