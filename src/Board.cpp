@@ -371,6 +371,143 @@ bool Board::isKingInCheck(Colour colour) const {
     return isSquareAttacked(king_rank, king_file, oppositeColour(colour));   
 }
 
+// Insufficient material rules as per: https://support.chess.com/en/articles/8705277-what-does-insufficient-mating-material-mean
+bool Board::isInsufficientMaterial() const {
+    int white_bishops = 0;
+    int black_bishops = 0;
+    int white_knights = 0;
+    int black_knights = 0;
+
+    for (const auto& piece : squares) {
+        if (piece.type == PieceType::None || piece.type == PieceType::King) {
+            continue;
+        }
+
+        if (piece.type == PieceType::Bishop) {
+            if (piece.colour == Colour::White) {
+                white_bishops++;
+            } else {
+                black_bishops++;
+            }
+        }
+        else if (piece.type == PieceType::Knight) {
+            if (piece.colour == Colour::White) {
+                white_knights++;
+            } else {
+                black_knights++;
+            }
+        }
+        else {
+            // Pawn, rook or queen is sufficient material
+            return false;
+        }
+    }
+
+    // Both sides have lone king, or king and bishop, or king and knight
+    bool white_insufficient = (white_knights == 0 && white_bishops == 1)
+                                || (white_knights == 1 && white_bishops == 0)
+                                || (white_knights == 0 && white_bishops == 0);
+    bool black_insufficient = (black_knights == 0 && black_bishops == 1)
+                                || (black_knights == 1 && black_bishops == 0)
+                                || (black_knights == 0 && black_bishops == 0);
+    if (white_insufficient && black_insufficient) {
+        return true;
+    }
+
+    // Two knights vs lone king
+    if (white_knights == 2 && white_bishops == 0 && black_knights == 0 && black_bishops == 0) {
+        return true;
+    }
+    if (black_knights == 2 && black_bishops == 0 && white_knights == 0 && white_bishops == 0) {
+        return true;
+    }
+
+    return false;
+}
+
+std::string Board::getPositionKey(const std::vector<Move>& legal_moves) const {
+    std::string key;
+
+    // Board position
+    for (int rank = 7; rank >= 0; rank--) {
+        int empty_squares = 0;
+
+        for (int file = 0; file < 8; file++) {
+            const Piece& piece = squares[rank * 8 + file];
+
+            if (piece.type == PieceType::None) {
+                empty_squares++;
+                continue;
+            }
+
+            if (empty_squares > 0) {
+                key += std::to_string(empty_squares);
+                empty_squares = 0;
+            }
+
+            key += piece.getSymbol();
+        }
+
+        if (empty_squares > 0) {
+            key += std::to_string(empty_squares);
+        }
+
+        if (rank > 0) {
+            key += '/';
+        }
+    }
+
+    // Turn
+    if (turn == Colour::White) {
+        key += " w ";
+    } else {
+        key += " b ";
+    }
+
+    // Castling rights
+    bool has_castling_rights = false;
+    if (white_castle_rights.king_side) {
+        key += 'K';
+        has_castling_rights = true;
+    }
+    if (white_castle_rights.queen_side) {
+        key += 'Q';
+        has_castling_rights = true;
+    }
+    if (black_castle_rights.king_side) {
+        key += 'k';
+        has_castling_rights = true;
+    }
+    if (black_castle_rights.queen_side) {
+        key += 'q';
+        has_castling_rights = true;
+    }
+    if (!has_castling_rights) {
+        key += '-';
+    }
+
+    // En passant
+    key += ' ';
+    bool en_passant_available = false;
+    for (const Move& move : legal_moves) {
+        if (move.type == MoveType::EnPassant) {
+            int target_rank = move.to / 8;
+            int target_file = move.to % 8;
+
+            key += static_cast<char>('a' + target_file);
+            key += static_cast<char>('1' + target_rank);
+
+            en_passant_available = true;
+            break;
+        }
+    }
+    if (!en_passant_available) {
+        key += '-';
+    }
+
+    return key;
+}
+
 const Piece& Board::getPiece(int square) const { return squares[square]; }
 
 const Piece& Board::getPiece(int rank, int file) const { return squares[rank * 8 + file]; }
