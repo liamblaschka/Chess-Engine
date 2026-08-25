@@ -24,6 +24,7 @@ public:
     bool isKingInCheck(Colour colour) const;
     bool isInsufficientMaterial() const;
     std::string getPositionKey(const std::vector<Move>& legal_moves) const;
+    int countPieces() const;
     const Piece& getPiece(int square) const;
     const Piece& getPiece(int rank, int file) const;
     void setPiece(int square, Piece piece);
@@ -31,6 +32,8 @@ public:
     Colour getTurn() const;
     void setTurn(Colour colour);
     CastleRights getCastleRights(Colour colour) const;
+    void setCastleRights(Colour colour, CastleRights rights);
+    const std::array<Piece, 64>& getSquares() const;
     void clear();
     void draw();
 };

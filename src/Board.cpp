@@ -508,6 +508,17 @@ std::string Board::getPositionKey(const std::vector<Move>& legal_moves) const {
     return key;
 }
 
+int Board::countPieces() const {
+    int count = 0;
+    for (const Piece& piece : squares) {
+        if (piece.type != PieceType::None) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
 const Piece& Board::getPiece(int square) const { return squares[square]; }
 
 const Piece& Board::getPiece(int rank, int file) const { return squares[rank * 8 + file]; }
@@ -528,13 +539,23 @@ CastleRights Board::getCastleRights(Colour colour) const {
     }
 }
 
+void Board::setCastleRights(Colour colour, CastleRights rights) {
+    if (colour == Colour::White) {
+        white_castle_rights = rights;
+    } else if (colour == Colour::Black) {
+        black_castle_rights = rights;
+    }
+}
+
 void Board::clear() {
     squares.fill(Piece());
 }
 
+const std::array<Piece, 64>& Board::getSquares() const { return squares; }
+
 void Board::draw() {
     for (int rank = 7; rank >= 0; rank--) {
-        std::cout << (8 - rank) << " ";
+        std::cout << (rank + 1) << " ";
         for (int file = 0; file < 8; file++) {
             char piece_symbol;
             switch (squares[rank * 8 + file].type) {
