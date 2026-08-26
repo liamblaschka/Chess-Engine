@@ -1,13 +1,13 @@
 #pragma once
 
 enum class PieceType {
-    None,
     Pawn,
-    Rook,
     Knight,
     Bishop,
+    Rook,
     Queen,
-    King
+    King,
+    None
 };
 
 enum class Colour {

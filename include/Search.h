@@ -3,6 +3,7 @@
 #include "Board.h"
 #include "Game.h"
 #include "Piece.h"
+#include "NNUE.h"
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -12,17 +13,21 @@ private:
     static constexpr int CHECKMATE_SCORE = 100000;
     static constexpr int DRAW_SCORE = 0;
 
+    NNUE nnue;
+
     // int max_depth = 10;
 
     std::unordered_map<std::string, Move> previous_best_moves;
 
-    int maximise(Game& game, int depth, int alpha, int beta);
-    int minimise(Game& game, int depth, int alpha, int beta);
+    float maximise(Game& game, int depth, float alpha, float beta);
+    float minimise(Game& game, int depth, float alpha, float beta);
 
     int scoreMove(const Move& move, const Board& board) const;
     void orderMoves(std::vector<Move>& moves, const Board& board);
-    int pieceValue(PieceType piece_type) const;
-    int evaluate(const Board& board) const;
+    // int pieceValue(PieceType piece_type) const;
+    float evaluate(const Board& board);
 public:
+    Search();
+
     Move minimax(Game& game);
 };
