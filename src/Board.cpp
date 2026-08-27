@@ -76,26 +76,22 @@ void Board::makeMove(const Move& move) {
             squares[move.to] = squares[move.from];
             squares[move.from] = Piece();
 
-            if (colour == Colour::White) {
-                if (move.to == Square::C1) {
-                    // Queen-side
-                    squares[Square::D1] = squares[Square::A1];
-                    squares[Square::A1] = Piece();
-                } else {
-                    // King-side
-                    squares[Square::F1] = squares[Square::H1];
-                    squares[Square::H1] = Piece();
-                }
+            if (move.to == Square::C1) {
+                // White Queen-side
+                squares[Square::D1] = squares[Square::A1];
+                squares[Square::A1] = Piece();
+            } else if (move.to == Square::G1) {
+                // White King-side
+                squares[Square::F1] = squares[Square::H1];
+                squares[Square::H1] = Piece();
+            } else if (move.to == Square::C8) {
+                // Black Queen-side
+                squares[Square::D8] = squares[Square::A8];
+                squares[Square::A8] = Piece();
             } else {
-                if (move.to == Square::C8) {
-                    // Queen-side
-                    squares[Square::D8] = squares[Square::A8];
-                    squares[Square::A8] = Piece();
-                } else {
-                    // King-side
-                    squares[Square::F8] = squares[Square::H8];
-                    squares[Square::H8] = Piece();
-                }
+                // Black King-side
+                squares[Square::F8] = squares[Square::H8];
+                squares[Square::H8] = Piece();
             }
             break;
         }
@@ -159,26 +155,22 @@ void Board::undoMove() {
             squares[previous.move.to] = previous.captured_piece;
             break;
         case MoveType::Castle:
-            if (squares[previous.move.to].colour == Colour::White) {
-                if (previous.move.to == Square::C1) {
-                    // Queen-side
-                    squares[Square::A1] = squares[Square::D1];
-                    squares[Square::D1] = Piece();
-                } else {
-                    // King-side
-                    squares[Square::H1] = squares[Square::F1];
-                    squares[Square::F1] = Piece();
-                }
+            if (previous.move.to == Square::C1) {
+                // White Queen-side
+                squares[Square::A1] = squares[Square::D1];
+                squares[Square::D1] = Piece();
+            } else if (previous.move.to == Square::G1) {
+                // White King-side
+                squares[Square::H1] = squares[Square::F1];
+                squares[Square::F1] = Piece();
+            } else if (previous.move.to == Square::C8) {
+                // Black Queen-side
+                squares[Square::A8] = squares[Square::D8];
+                squares[Square::D8] = Piece();
             } else {
-                if (previous.move.to == Square::C8) {
-                    // Queen-side
-                    squares[Square::A8] = squares[Square::D8];
-                    squares[Square::D8] = Piece();
-                } else {
-                    // King-side
-                    squares[Square::H8] = squares[Square::F8];
-                    squares[Square::F8] = Piece();
-                }
+                // Black King-side
+                squares[Square::H8] = squares[Square::F8];
+                squares[Square::F8] = Piece();
             }
 
             squares[previous.move.from] = squares[previous.move.to];

@@ -15,5 +15,7 @@ public:
 
     std::vector<float> refresh_accumulator(const std::vector<int>& active_features) const;
 
+    void update_accumulator(std::vector<float>& values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
+
     void load_weights(std::ifstream& file);
 };

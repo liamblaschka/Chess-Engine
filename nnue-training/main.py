@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 def main():
     dataset = PositionDataset("train_data/chessData.csv")
@@ -20,7 +20,7 @@ def main():
     
     
     with open("nnue.bin", "wb") as f:
-        for layer in [model.accumulator, model.h1, model.output]:
+        for layer in [model.accumulator_w, model.accumulator_b, model.h1, model.output]:
             weights = (
                 layer.weight
                 .detach()

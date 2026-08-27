@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import time
 from model import NNUE
 
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.001
 EPOCHS = 10
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
@@ -13,10 +14,12 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
     model.train()
     
     for epoch in range(epochs):
+        start_time = time.perf_counter()
+        
         total_loss = 0.0
         
-        for features, targets in dataloader:
-            predictions = model(features).squeeze(1)
+        for features, targets, side_to_move in dataloader:
+            predictions = model(features, side_to_move).squeeze(1)
             
             loss = criterion(predictions, targets)
             
@@ -27,4 +30,4 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
             total_loss += loss.item()
             
         average_loss = total_loss / len(dataloader)
-        print(f"Epoch {epoch+1}: loss {average_loss:.6f}")
+        print(f"Epoch {epoch+1}: loss {average_loss:.6f}, time {time.perf_counter() - start_time:.2f}s")

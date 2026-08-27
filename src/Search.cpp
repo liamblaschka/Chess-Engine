@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "Board.h"
 #include "Move.h"
+#include "SquareConstants.h"
 #include "NNUE.h"
 #include <array>
 #include <vector>
@@ -30,13 +31,13 @@ float Search::maximise(Game& game, int depth, float alpha, float beta) {
     }
 
     for (const Move& move : moves) {
-        game.makeMove(move);
+        makeMove(move, game);
         float score = minimise(game, depth - 1, alpha, beta);
         if (score > best_score) {
             best_score = score;
             best_move = move;
         }
-        game.undoMove();
+        undoMove(move, game);
 
         if (best_score >= beta) {
             break;
@@ -68,13 +69,13 @@ float Search::minimise(Game& game, int depth, float alpha, float beta) {
     }
 
     for (const Move& move : moves) {
-        game.makeMove(move);
+        makeMove(move, game);
         float score = maximise(game, depth - 1, alpha, beta);
         if (score < best_score) {
             best_score = score;
             best_move = move;
         }
-        game.undoMove();
+        undoMove(move, game);
 
         if (best_score <= alpha) {
             break;
@@ -88,13 +89,15 @@ float Search::minimise(Game& game, int depth, float alpha, float beta) {
 }
 
 Move Search::minimax(Game& game) {
+    nnue.refreshAccumulators(white_acc_values, black_acc_values, getActiveFeatures(game.getBoard()));
+
     Move best_move;
     std::vector<Move> moves = game.getLegalMoves();
     orderMoves(moves, game.getBoard());
     float alpha = std::numeric_limits<float>::lowest();
     float beta = std::numeric_limits<float>::max();
 
-    int depth = 5;
+    int depth = 6;
     // int pieces_count = game.getBoard().countPieces();
     // if (pieces_count <= 16) {
     //     depth = 5;
@@ -109,7 +112,7 @@ Move Search::minimax(Game& game) {
     if (game.getTurn() == Colour::White) {
         float best_score = std::numeric_limits<float>::lowest();
         for (const Move& move : moves) {
-            game.makeMove(move);
+            makeMove(move, game);
 
             float score = minimise(game, depth - 1, alpha, beta);
             if (score > best_score) {
@@ -118,12 +121,12 @@ Move Search::minimax(Game& game) {
             }
             alpha = std::max(alpha, best_score);
 
-            game.undoMove();
+            undoMove(move, game);
         }
     } else {
         float best_score = std::numeric_limits<float>::max();
         for (const Move& move : moves) {
-            game.makeMove(move);
+            makeMove(move, game);
 
             float score = maximise(game, depth - 1, alpha, beta);
             if (score < best_score) {
@@ -132,14 +135,206 @@ Move Search::minimax(Game& game) {
             }
             beta = std::min(beta, best_score);
 
-            game.undoMove();
+            undoMove(move, game);
         }
     }
 
     return best_move;
 }
 
+void Search::makeMove(const Move& move, Game& game) {
+    std::vector<int> added_features;
+    std::vector<int> removed_features;
+    const Board& board = game.getBoard();
+    switch (move.type) {
+        case (MoveType::Normal): {
+            // Move piece
+            const Piece& piece = board.getPiece(move.from);
+            removed_features.push_back(getFeature(move.from, piece));
+            added_features.push_back(getFeature(move.to, piece));
+
+            // Capture piece
+            const Piece& captured_piece = board.getPiece(move.to);
+            if (captured_piece.type != PieceType::None) {
+                removed_features.push_back(getFeature(move.to, captured_piece));
+            }
+
+            break;
+        }
+        case (MoveType::EnPassant): {
+            // Move pawn
+            const Piece& pawn = board.getPiece(move.from);
+            removed_features.push_back(getFeature(move.from, pawn));
+            added_features.push_back(getFeature(move.to, pawn));
+
+            // Capture piece
+            int from_rank = move.from / 8;
+            int to_rank = move.to / 8;
+            int direction = to_rank - from_rank;
+            int captured_square = move.to - (8 * direction);
+            removed_features.push_back(getFeature(captured_square, board.getPiece(captured_square)));
+
+            break;
+        }
+        case (MoveType::Castle): {
+            // Move king
+            const Piece& king = board.getPiece(move.from);
+            removed_features.push_back(getFeature(move.from, king));
+            added_features.push_back(getFeature(move.to, king));
+
+            // Move rook
+            if (move.to == Square::C1) {
+                // White Queen-side
+                const Piece& rook = board.getPiece(Square::A1);
+                removed_features.push_back(getFeature(Square::A1, rook));
+                added_features.push_back(getFeature(Square::D1, rook));
+            } else if (move.to == Square::G1) {
+                // White King-side
+                const Piece& rook = board.getPiece(Square::H1);
+                removed_features.push_back(getFeature(Square::H1, rook));
+                added_features.push_back(getFeature(Square::F1, rook));
+            } else if (move.to == Square::C8) {
+                // Black Queen-side
+                const Piece& rook = board.getPiece(Square::A8);
+                removed_features.push_back(getFeature(Square::A8, rook));
+                added_features.push_back(getFeature(Square::D8, rook));
+            } else {
+                // Black King-side
+                const Piece& rook = board.getPiece(Square::H8);
+                removed_features.push_back(getFeature(Square::H8, rook));
+                added_features.push_back(getFeature(Square::F8, rook));
+            }
+            break;
+        }
+        case (MoveType::Promotion): {
+            // Promote pawn
+            const Piece& pawn = board.getPiece(move.from);
+            removed_features.push_back(getFeature(move.from, pawn));
+            added_features.push_back(getFeature(move.to, move.promotion_piece));
+
+            // Capture piece
+            const Piece& captured_piece = board.getPiece(move.to);
+            if (captured_piece.type != PieceType::None) {
+                removed_features.push_back(getFeature(move.to, captured_piece));
+            }
+            
+            break;
+        }
+    }
+
+    nnue.updateAccumulators(white_acc_values, black_acc_values, added_features, removed_features);
+
+    game.makeMove(move);
+}
+
+void Search::undoMove(const Move& move, Game& game) {
+    game.undoMove();
+
+    std::vector<int> added_features;
+    std::vector<int> removed_features;
+    const Board& board = game.getBoard();
+    switch (move.type) {
+        case (MoveType::Normal): {
+            // Move piece
+            const Piece& piece = board.getPiece(move.from);
+            added_features.push_back(getFeature(move.from, piece));
+            removed_features.push_back(getFeature(move.to, piece));
+
+            // Capture piece
+            const Piece& captured_piece = board.getPiece(move.to);
+            if (captured_piece.type != PieceType::None) {
+                added_features.push_back(getFeature(move.to, captured_piece));
+            }
+
+            break;
+        }
+        case (MoveType::EnPassant): {
+            // Move pawn
+            const Piece& pawn = board.getPiece(move.from);
+            added_features.push_back(getFeature(move.from, pawn));
+            removed_features.push_back(getFeature(move.to, pawn));
+
+            // Capture piece
+            int from_rank = move.from / 8;
+            int to_rank = move.to / 8;
+            int direction = to_rank - from_rank;
+            int captured_square = move.to - (8 * direction);
+            added_features.push_back(getFeature(captured_square, board.getPiece(captured_square)));
+
+            break;
+        }
+        case (MoveType::Castle): {
+            // Move king
+            const Piece& king = board.getPiece(move.from);
+            added_features.push_back(getFeature(move.from, king));
+            removed_features.push_back(getFeature(move.to, king));
+
+            // Move rook
+            if (move.to == Square::C1) {
+                // White Queen-side
+                const Piece& rook = board.getPiece(Square::A1);
+                added_features.push_back(getFeature(Square::A1, rook));
+                removed_features.push_back(getFeature(Square::D1, rook));
+            } else if (move.to == Square::G1) {
+                // White King-side
+                const Piece& rook = board.getPiece(Square::H1);
+                added_features.push_back(getFeature(Square::H1, rook));
+                removed_features.push_back(getFeature(Square::F1, rook));
+            } else if (move.to == Square::C8) {
+                // Black Queen-side
+                const Piece& rook = board.getPiece(Square::A8);
+                added_features.push_back(getFeature(Square::A8, rook));
+                removed_features.push_back(getFeature(Square::D8, rook));
+            } else {
+                // Black King-side
+                const Piece& rook = board.getPiece(Square::H8);
+                added_features.push_back(getFeature(Square::H8, rook));
+                removed_features.push_back(getFeature(Square::F8, rook));
+            }
+            break;
+        }
+        case (MoveType::Promotion): {
+            // Promote pawn
+            const Piece& pawn = board.getPiece(move.from);
+            added_features.push_back(getFeature(move.from, pawn));
+            removed_features.push_back(getFeature(move.to, move.promotion_piece));
+
+            // Capture piece
+            const Piece& captured_piece = board.getPiece(move.to);
+            if (captured_piece.type != PieceType::None) {
+                added_features.push_back(getFeature(move.to, captured_piece));
+            }
+            
+            break;
+        }
+    }
+
+    nnue.updateAccumulators(white_acc_values, black_acc_values, added_features, removed_features);
+}
+
 float Search::evaluate(const Board& board) {
+    int side_to_move;
+    if (board.getTurn() == Colour::White) {
+        side_to_move = 0;
+    } else {
+        side_to_move = 1;
+    }
+
+    return nnue.forward(white_acc_values, black_acc_values, side_to_move);
+}
+
+int Search::getFeature(int square, const Piece& piece) const {
+    int side;
+    if (piece.colour == Colour::White) {
+        side = 0;
+    } else {
+        side = 1;
+    }
+
+    return (side * 64 * 6 + static_cast<int>(piece.type) * 64 + square);
+}
+
+std::vector<int> Search::getActiveFeatures(Board& board) const {
     std::vector<int> active_features;
     for (int square = 0; square < 64; square++) {
         const Piece& piece = board.getPiece(square);
@@ -147,21 +342,11 @@ float Search::evaluate(const Board& board) {
             continue;
         }
 
-        int side;
-        if (piece.colour == Colour::White) {
-            side = 0;
-        } else {
-            side = 1;
-        }
-
-        int i = side * 64 * 6 + static_cast<int>(piece.type) * 64 + square;
-        active_features.push_back(i);
+        active_features.push_back(getFeature(square, piece));
     }
 
-    return nnue.forward(active_features);
+    return active_features;
 }
-
-
 
 int Search::scoreMove(const Move& move, const Board& board) const {
     int score = 0;
