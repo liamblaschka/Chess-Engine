@@ -89,7 +89,8 @@ float Search::minimise(Game& game, int depth, float alpha, float beta) {
 }
 
 Move Search::minimax(Game& game) {
-    nnue.refreshAccumulators(white_acc_values, black_acc_values, getActiveFeatures(game.getBoard()));
+    nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(game.getBoard(), Colour::White));
+    nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(game.getBoard(), Colour::Black));
 
     Move best_move;
     std::vector<Move> moves = game.getLegalMoves();
@@ -142,21 +143,18 @@ Move Search::minimax(Game& game) {
     return best_move;
 }
 
-void Search::makeMove(const Move& move, Game& game) {
-    std::vector<int> added_features;
-    std::vector<int> removed_features;
-    const Board& board = game.getBoard();
+void Search::getFeatureUpdates(std::vector<int>& after_move_features, std::vector<int>& before_move_features, int king_square, const Move& move, const Board& board) {
     switch (move.type) {
         case (MoveType::Normal): {
             // Move piece
             const Piece& piece = board.getPiece(move.from);
-            removed_features.push_back(getFeature(move.from, piece));
-            added_features.push_back(getFeature(move.to, piece));
+            before_move_features.push_back(getFeature(move.from, piece, king_square));
+            after_move_features.push_back(getFeature(move.to, piece, king_square));
 
             // Capture piece
             const Piece& captured_piece = board.getPiece(move.to);
             if (captured_piece.type != PieceType::None) {
-                removed_features.push_back(getFeature(move.to, captured_piece));
+                before_move_features.push_back(getFeature(move.to, captured_piece, king_square));
             }
 
             break;
@@ -164,152 +162,140 @@ void Search::makeMove(const Move& move, Game& game) {
         case (MoveType::EnPassant): {
             // Move pawn
             const Piece& pawn = board.getPiece(move.from);
-            removed_features.push_back(getFeature(move.from, pawn));
-            added_features.push_back(getFeature(move.to, pawn));
+            before_move_features.push_back(getFeature(move.from, pawn, king_square));
+            after_move_features.push_back(getFeature(move.to, pawn, king_square));
 
             // Capture piece
             int from_rank = move.from / 8;
             int to_rank = move.to / 8;
             int direction = to_rank - from_rank;
             int captured_square = move.to - (8 * direction);
-            removed_features.push_back(getFeature(captured_square, board.getPiece(captured_square)));
+            before_move_features.push_back(getFeature(captured_square, board.getPiece(captured_square), king_square));
 
             break;
         }
         case (MoveType::Castle): {
-            // Move king
-            const Piece& king = board.getPiece(move.from);
-            removed_features.push_back(getFeature(move.from, king));
-            added_features.push_back(getFeature(move.to, king));
-
             // Move rook
             if (move.to == Square::C1) {
                 // White Queen-side
                 const Piece& rook = board.getPiece(Square::A1);
-                removed_features.push_back(getFeature(Square::A1, rook));
-                added_features.push_back(getFeature(Square::D1, rook));
+                before_move_features.push_back(getFeature(Square::A1, rook, king_square));
+                after_move_features.push_back(getFeature(Square::D1, rook, king_square));
             } else if (move.to == Square::G1) {
                 // White King-side
                 const Piece& rook = board.getPiece(Square::H1);
-                removed_features.push_back(getFeature(Square::H1, rook));
-                added_features.push_back(getFeature(Square::F1, rook));
+                before_move_features.push_back(getFeature(Square::H1, rook, king_square));
+                after_move_features.push_back(getFeature(Square::F1, rook, king_square));
             } else if (move.to == Square::C8) {
                 // Black Queen-side
                 const Piece& rook = board.getPiece(Square::A8);
-                removed_features.push_back(getFeature(Square::A8, rook));
-                added_features.push_back(getFeature(Square::D8, rook));
+                before_move_features.push_back(getFeature(Square::A8, rook, king_square));
+                after_move_features.push_back(getFeature(Square::D8, rook, king_square));
             } else {
                 // Black King-side
                 const Piece& rook = board.getPiece(Square::H8);
-                removed_features.push_back(getFeature(Square::H8, rook));
-                added_features.push_back(getFeature(Square::F8, rook));
+                before_move_features.push_back(getFeature(Square::H8, rook, king_square));
+                after_move_features.push_back(getFeature(Square::F8, rook, king_square));
             }
             break;
         }
         case (MoveType::Promotion): {
             // Promote pawn
             const Piece& pawn = board.getPiece(move.from);
-            removed_features.push_back(getFeature(move.from, pawn));
-            added_features.push_back(getFeature(move.to, move.promotion_piece));
+            before_move_features.push_back(getFeature(move.from, pawn, king_square));
+            after_move_features.push_back(getFeature(move.to, move.promotion_piece, king_square));
 
             // Capture piece
             const Piece& captured_piece = board.getPiece(move.to);
             if (captured_piece.type != PieceType::None) {
-                removed_features.push_back(getFeature(move.to, captured_piece));
+                before_move_features.push_back(getFeature(move.to, captured_piece, king_square));
             }
             
             break;
         }
     }
+}
 
-    nnue.updateAccumulators(white_acc_values, black_acc_values, added_features, removed_features);
+void Search::makeMove(const Move& move, Game& game) {
+    const Board& board = game.getBoard();
+    const Piece& piece = board.getPiece(move.from);
 
-    game.makeMove(move);
+    if (piece.type == PieceType::King) {
+        if (piece.colour == Colour::White) {
+            if (move.type == MoveType::Castle) {
+                std::vector<int> black_added_features;
+                std::vector<int> black_removed_features;
+                getFeatureUpdates(black_added_features, black_removed_features, board.getKingSquare(Colour::Black), move, board);
+                nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+            }
+            
+            game.makeMove(move);
+
+            nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(board, Colour::White));
+        } else {
+            if (move.type == MoveType::Castle) {
+                std::vector<int> white_added_features;
+                std::vector<int> white_removed_features;
+                getFeatureUpdates(white_added_features, white_removed_features, board.getKingSquare(Colour::White), move, board);
+                nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+            }
+
+            game.makeMove(move);
+
+            nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(board, Colour::Black));
+        }
+    } else {
+        std::vector<int> white_added_features;
+        std::vector<int> white_removed_features;
+        getFeatureUpdates(white_added_features, white_removed_features, board.getKingSquare(Colour::White), move, board);
+        nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+
+        std::vector<int> black_added_features;
+        std::vector<int> black_removed_features;
+        getFeatureUpdates(black_added_features, black_removed_features, board.getKingSquare(Colour::Black), move, board);
+        nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+
+        game.makeMove(move);
+    }
 }
 
 void Search::undoMove(const Move& move, Game& game) {
     game.undoMove();
 
-    std::vector<int> added_features;
-    std::vector<int> removed_features;
     const Board& board = game.getBoard();
-    switch (move.type) {
-        case (MoveType::Normal): {
-            // Move piece
-            const Piece& piece = board.getPiece(move.from);
-            added_features.push_back(getFeature(move.from, piece));
-            removed_features.push_back(getFeature(move.to, piece));
+    const Piece& piece = board.getPiece(move.from);
 
-            // Capture piece
-            const Piece& captured_piece = board.getPiece(move.to);
-            if (captured_piece.type != PieceType::None) {
-                added_features.push_back(getFeature(move.to, captured_piece));
+    if (piece.type == PieceType::King) {
+        if (piece.colour == Colour::White) {
+            if (move.type == MoveType::Castle) {
+                std::vector<int> black_added_features;
+                std::vector<int> black_removed_features;
+                getFeatureUpdates(black_removed_features, black_added_features, board.getKingSquare(Colour::Black), move, board);
+                nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
             }
 
-            break;
-        }
-        case (MoveType::EnPassant): {
-            // Move pawn
-            const Piece& pawn = board.getPiece(move.from);
-            added_features.push_back(getFeature(move.from, pawn));
-            removed_features.push_back(getFeature(move.to, pawn));
-
-            // Capture piece
-            int from_rank = move.from / 8;
-            int to_rank = move.to / 8;
-            int direction = to_rank - from_rank;
-            int captured_square = move.to - (8 * direction);
-            added_features.push_back(getFeature(captured_square, board.getPiece(captured_square)));
-
-            break;
-        }
-        case (MoveType::Castle): {
-            // Move king
-            const Piece& king = board.getPiece(move.from);
-            added_features.push_back(getFeature(move.from, king));
-            removed_features.push_back(getFeature(move.to, king));
-
-            // Move rook
-            if (move.to == Square::C1) {
-                // White Queen-side
-                const Piece& rook = board.getPiece(Square::A1);
-                added_features.push_back(getFeature(Square::A1, rook));
-                removed_features.push_back(getFeature(Square::D1, rook));
-            } else if (move.to == Square::G1) {
-                // White King-side
-                const Piece& rook = board.getPiece(Square::H1);
-                added_features.push_back(getFeature(Square::H1, rook));
-                removed_features.push_back(getFeature(Square::F1, rook));
-            } else if (move.to == Square::C8) {
-                // Black Queen-side
-                const Piece& rook = board.getPiece(Square::A8);
-                added_features.push_back(getFeature(Square::A8, rook));
-                removed_features.push_back(getFeature(Square::D8, rook));
-            } else {
-                // Black King-side
-                const Piece& rook = board.getPiece(Square::H8);
-                added_features.push_back(getFeature(Square::H8, rook));
-                removed_features.push_back(getFeature(Square::F8, rook));
+            nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(board, Colour::White));
+        } else {
+            if (move.type == MoveType::Castle) {
+                std::vector<int> white_added_features;
+                std::vector<int> white_removed_features;
+                getFeatureUpdates(white_removed_features, white_added_features, board.getKingSquare(Colour::White), move, board);
+                nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
             }
-            break;
-        }
-        case (MoveType::Promotion): {
-            // Promote pawn
-            const Piece& pawn = board.getPiece(move.from);
-            added_features.push_back(getFeature(move.from, pawn));
-            removed_features.push_back(getFeature(move.to, move.promotion_piece));
 
-            // Capture piece
-            const Piece& captured_piece = board.getPiece(move.to);
-            if (captured_piece.type != PieceType::None) {
-                added_features.push_back(getFeature(move.to, captured_piece));
-            }
-            
-            break;
+            nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(board, Colour::Black));
         }
+    } else {
+        std::vector<int> white_added_features;
+        std::vector<int> white_removed_features;
+        getFeatureUpdates(white_removed_features, white_added_features, board.getKingSquare(Colour::White), move, board);
+        nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+
+        std::vector<int> black_added_features;
+        std::vector<int> black_removed_features;
+        getFeatureUpdates(black_removed_features, black_added_features, board.getKingSquare(Colour::Black), move, board);
+        nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
     }
-
-    nnue.updateAccumulators(white_acc_values, black_acc_values, added_features, removed_features);
 }
 
 float Search::evaluate(const Board& board) {
@@ -323,7 +309,7 @@ float Search::evaluate(const Board& board) {
     return nnue.forward(white_acc_values, black_acc_values, side_to_move);
 }
 
-int Search::getFeature(int square, const Piece& piece) const {
+int Search::getFeature(int square, const Piece& piece, int king_square) const {
     int side;
     if (piece.colour == Colour::White) {
         side = 0;
@@ -331,18 +317,24 @@ int Search::getFeature(int square, const Piece& piece) const {
         side = 1;
     }
 
-    return (side * 64 * 6 + static_cast<int>(piece.type) * 64 + square);
+    int p_idx = static_cast<int>(piece.type) * 2 + side;
+    int halfkp_idx = square + (p_idx + king_square * 10) * 64;
+
+    return halfkp_idx;
 }
 
-std::vector<int> Search::getActiveFeatures(Board& board) const {
+std::vector<int> Search::getActiveFeatures(const Board& board, Colour colour) const {
     std::vector<int> active_features;
+
+    int king_square = board.getKingSquare(colour);
+
     for (int square = 0; square < 64; square++) {
         const Piece& piece = board.getPiece(square);
-        if (piece.type == PieceType::None) {
+        if (piece.type == PieceType::None || piece.type == PieceType::King) {
             continue;
         }
 
-        active_features.push_back(getFeature(square, piece));
+        active_features.push_back(getFeature(square, piece, king_square));
     }
 
     return active_features;

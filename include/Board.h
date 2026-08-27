@@ -12,6 +12,10 @@ private:
     std::array<Piece, 64> squares;
     Colour turn;
     std::vector<MoveState> move_history;
+
+    int white_king_square;
+    int black_king_square;
+
     CastleRights white_castle_rights;
     CastleRights black_castle_rights;
 public:
@@ -21,6 +25,7 @@ public:
     const MoveState* getLastMove() const;
     bool isSquareAttacked(int rank, int file, Colour opponent) const;
     bool isSquareAttacked(int square, Colour attacking_colour) const;
+    int getKingSquare(Colour colour) const;
     bool isKingInCheck(Colour colour) const;
     bool isInsufficientMaterial() const;
     std::string getPositionKey(const std::vector<Move>& legal_moves) const;

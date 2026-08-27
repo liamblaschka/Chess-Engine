@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-FEATURE_SIZE = 768
-A_SIZE = 64
-H1_SIZE = 32
+FEATURE_SIZE = 40960
+A_SIZE = 32
+H1_SIZE = 16
 
 class NNUE(nn.Module):
     def __init__(self, feature_size=FEATURE_SIZE, a_size=A_SIZE, h1_size=H1_SIZE):
@@ -14,9 +14,9 @@ class NNUE(nn.Module):
         self.h1 = nn.Linear(a_size * 2, h1_size)
         self.output = nn.Linear(h1_size, 1)
     
-    def forward(self, features, side_to_move):
-        w = self.accumulator_w(features)
-        b = self.accumulator_b(features)
+    def forward(self, white_features, black_features, side_to_move):
+        w = self.accumulator_w(white_features)
+        b = self.accumulator_b(black_features)
         a_output = ((1 - side_to_move) * torch.cat([w, b], dim=1)) + (side_to_move * torch.cat([b, w], dim=1))
         a_output = torch.clamp(a_output, 0, 1)
         

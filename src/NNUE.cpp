@@ -59,18 +59,18 @@ float NNUE::forward(const std::vector<float>& white_acc_values, const std::vecto
 //     return output.forward(h1_output)[0];
 // }
 
-void NNUE::refreshAccumulators(
-    std::vector<float>& white_values, std::vector<float>& black_values,
-    const std::vector<int>& active_features
-) const {
-    white_values = accumulator_w.refresh_accumulator(active_features);
-    black_values = accumulator_b.refresh_accumulator(active_features);
+void NNUE::refreshWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const {
+    acc_values = accumulator_w.refresh_accumulator(active_features);
 }
 
-void NNUE::updateAccumulators(
-    std::vector<float>& white_values, std::vector<float>& black_values,
-    const std::vector<int>& added_features, const std::vector<int>& removed_features
-) const {
-    accumulator_w.update_accumulator(white_values, added_features, removed_features);
-    accumulator_b.update_accumulator(black_values, added_features, removed_features);
+void NNUE::refreshBlackAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const {
+    acc_values = accumulator_b.refresh_accumulator(active_features);
+}
+
+void NNUE::updateWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const {
+    accumulator_w.update_accumulator(acc_values, added_features, removed_features);
+}
+
+void NNUE::updateBlackAccumulator(std::vector<float>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const {
+    accumulator_b.update_accumulator(acc_values, added_features, removed_features);
 }

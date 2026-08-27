@@ -18,12 +18,13 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
         
         total_loss = 0.0
         
-        for features, targets, side_to_move in dataloader:
-            predictions = model(features, side_to_move).squeeze(1)
+        for white_features, black_features, targets, side_to_move in dataloader:
+            optimizer.zero_grad() # clear previous batch gradients
+            
+            predictions = model(white_features, black_features, side_to_move).squeeze(1)
             
             loss = criterion(predictions, targets)
             
-            optimizer.zero_grad() # clear previous batch gradients
             loss.backward() # backpropagation (figure out our loss)
             optimizer.step() # update the weights with optimizer
             

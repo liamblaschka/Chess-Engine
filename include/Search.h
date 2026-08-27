@@ -25,12 +25,13 @@ private:
     float maximise(Game& game, int depth, float alpha, float beta);
     float minimise(Game& game, int depth, float alpha, float beta);
 
+    void getFeatureUpdates(std::vector<int>& after_move_features, std::vector<int>& before_move_features, int king_square, const Move& move, const Board& board);
     void makeMove(const Move& move, Game& game);
     void undoMove(const Move& move, Game& game);
     float evaluate(const Board& board);
 
-    int getFeature(int square, const Piece& piece) const;
-    std::vector<int> getActiveFeatures(Board& board) const;
+    int getFeature(int square, const Piece& piece, int king_square) const;
+    std::vector<int> getActiveFeatures(const Board& board, Colour colour) const;
 
     int scoreMove(const Move& move, const Board& board) const;
     void orderMoves(std::vector<Move>& moves, const Board& board);
