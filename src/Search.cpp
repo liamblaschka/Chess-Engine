@@ -99,16 +99,6 @@ Move Search::minimax(Game& game) {
     float beta = std::numeric_limits<float>::max();
 
     int depth = 6;
-    // int pieces_count = game.getBoard().countPieces();
-    // if (pieces_count <= 16) {
-    //     depth = 5;
-    // }
-    // if (pieces_count <= 8) {
-    //     depth = 6;
-    // }
-    // if (pieces_count <= 4) {
-    //     depth = 7;
-    // }
 
     if (game.getTurn() == Colour::White) {
         float best_score = std::numeric_limits<float>::lowest();
