@@ -8,6 +8,15 @@ LEARNING_RATE = 0.001
 EPOCHS = 10
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
+    if torch.accelerator.is_available():
+        device = torch.accelerator.current_accelerator()
+    else:
+        device = torch.device("cpu")
+
+    print(f"Using device: {device}")
+
+    model.to(device)
+    
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
@@ -19,6 +28,11 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
         total_loss = 0.0
         
         for white_features, black_features, targets, side_to_move in dataloader:
+            white_features = white_features.to(device)
+            black_features = black_features.to(device)
+            targets = targets.to(device)
+            side_to_move = side_to_move.to(device)
+            
             optimizer.zero_grad() # clear previous batch gradients
             
             predictions = model(white_features, black_features, side_to_move).squeeze(1)
