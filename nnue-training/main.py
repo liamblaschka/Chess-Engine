@@ -7,7 +7,7 @@ import numpy as np
 
 BATCH_SIZE = 128
 
-DATALOADER_WORKERS = 4
+DATALOADER_WORKERS = 6
 
 def main():
     dataset = PositionDataset("train_data/chessData.csv")
