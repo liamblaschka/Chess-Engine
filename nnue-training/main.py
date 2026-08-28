@@ -7,12 +7,14 @@ import numpy as np
 
 BATCH_SIZE = 128
 
+DATALOADER_WORKERS = 4
+
 def main():
     dataset = PositionDataset("train_data/chessData.csv")
     
     model = NNUE()
     
-    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=DATALOADER_WORKERS, persistent_workers=True)
     
     train(model, dataloader)
     
