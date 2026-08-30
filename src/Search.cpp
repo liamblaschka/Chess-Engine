@@ -296,7 +296,8 @@ float Search::evaluate(const Board& board) {
         side_to_move = 1;
     }
 
-    return nnue.forward(white_acc_values, black_acc_values, side_to_move);
+    float score = nnue.forward(white_acc_values, black_acc_values, side_to_move);
+    return score;
 }
 
 int Search::getFeature(int square, const Piece& piece, int king_square) const {

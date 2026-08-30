@@ -7,7 +7,7 @@
 #include <stdexcept>
 
 NNUE::NNUE(const std::string& weights_file)
-    : accumulator_w(FEATURE_SIZE, A_SIZE), accumulator_b(FEATURE_SIZE, A_SIZE), h1(A_SIZE * 2, H1_SIZE), output(H1_SIZE, 1)
+    : accumulator_w(FEATURE_SIZE, A_SIZE), accumulator_b(FEATURE_SIZE, A_SIZE), h1(A_SIZE * 2, H1_SIZE), h2(H1_SIZE, H2_SIZE), output(H2_SIZE, 1)
 {
     std::ifstream file(weights_file, std::ios::binary);
     if (!file) {
@@ -17,6 +17,7 @@ NNUE::NNUE(const std::string& weights_file)
     accumulator_w.load_weights(file);
     accumulator_b.load_weights(file);
     h1.load_weights(file);
+    h2.load_weights(file);
     output.load_weights(file);
 }
 
@@ -35,29 +36,11 @@ float NNUE::forward(const std::vector<float>& white_acc_values, const std::vecto
     std::vector<float> h1_output = h1.forward(acc_values);
     crelu(h1_output);
 
-    return output.forward(h1_output)[0];
+    std::vector<float> h2_output = h2.forward(h1_output);
+    crelu(h2_output);
+
+    return output.forward(h2_output)[0];
 }
-
-// float NNUE::forward(const std::vector<int>& active_features, int side_to_move) {
-//     std::vector<float> w = accumulator_w.refresh_accumulator(active_features);
-//     std::vector<float> b = accumulator_b.refresh_accumulator(active_features);
-
-//     std::vector<float> a_output;
-//     a_output.reserve(w.size() + b.size());
-//     if (side_to_move == 0) {
-//         a_output.insert(a_output.end(), w.begin(), w.end());
-//         a_output.insert(a_output.end(), b.begin(), b.end());
-//     } else {
-//         a_output.insert(a_output.end(), b.begin(), b.end());
-//         a_output.insert(a_output.end(), w.begin(), w.end());
-//     }
-//     crelu(a_output);
-
-//     std::vector<float> h1_output = h1.forward(a_output);
-//     crelu(h1_output);
-
-//     return output.forward(h1_output)[0];
-// }
 
 void NNUE::refreshWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const {
     acc_values = accumulator_w.refresh_accumulator(active_features);
