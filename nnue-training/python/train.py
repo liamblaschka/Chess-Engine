@@ -5,7 +5,7 @@ from model import NNUE
 from data_loader import DataLoader
 from data_loader import SparseBatch
 
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.001
 EPOCHS = 10
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
