@@ -3,7 +3,7 @@ import torch.nn as nn
 
 FEATURE_SIZE = 40960
 A_SIZE = 64
-H1_SIZE = 8
+H1_SIZE = 16
 H2_SIZE = 8
 
 class NNUE(nn.Module):
