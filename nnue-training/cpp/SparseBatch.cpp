@@ -3,6 +3,7 @@
 #include "TrainingEntry.h"
 #include <vector>
 #include <cstdint>
+#include <algorithm>
 
 SparseBatch::SparseBatch(int size)  : size(size), num_active_white_features(0), num_active_black_features(0) {    
     side_to_move = new float[size];

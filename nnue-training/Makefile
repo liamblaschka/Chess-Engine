@@ -3,7 +3,7 @@ macos:
 	cpp/DataLoader.cpp cpp/Dataset.cpp cpp/SparseBatch.cpp \
 	-o build/libdataloader.dylib \
 
-windows:
+linux:
 	g++ -std=c++17 -shared \
 	cpp/DataLoader.cpp cpp/Dataset.cpp cpp/SparseBatch.cpp \
-	-o build/libdataloader.dll \
+	-o build/libdataloader.so \

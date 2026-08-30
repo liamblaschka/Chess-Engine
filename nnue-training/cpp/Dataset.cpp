@@ -8,6 +8,7 @@
 #include <cctype>
 #include <random>
 #include <numeric>
+#include <algorithm>
 
 Dataset::Dataset(const std::string& file_path, int data_size) : shuffled_index(0), rng(33) {
     shuffled_indices.resize(data_size);
