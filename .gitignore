@@ -1,7 +1,8 @@
-*.bin
+# *.bin
 *.pth
 *.csv
 
+*.venv/
 
 # Prerequisites
 *.d
