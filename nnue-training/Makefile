@@ -4,6 +4,6 @@ macos:
 	-o build/libdataloader.dylib \
 
 linux:
-	g++ -std=c++17 -shared \
+	g++ -std=c++17 -fPIC -shared -pthread \
 	cpp/DataLoader.cpp cpp/Dataset.cpp cpp/SparseBatch.cpp \
-	-o build/libdataloader.so \
+	-o build/libdataloader.so
