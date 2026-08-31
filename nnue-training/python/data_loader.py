@@ -61,9 +61,6 @@ _lib.DataLoader_new.restype = ctypes.c_void_p
 _lib.DataLoader_delete.argtypes = [ctypes.c_void_p]
 _lib.DataLoader_delete.restype = None
 
-_lib.DataLoader_fillBatch.argtypes = [ctypes.c_void_p]
-_lib.DataLoader_fillBatch.restype = None
-
 _lib.DataLoader_getBatch.argtypes = [ctypes.c_void_p]
 _lib.DataLoader_getBatch.restype = ctypes.c_void_p
 
@@ -131,11 +128,9 @@ class DataLoader:
     def __init__(self, dataset: Dataset, batch_size: int, num_workers: int):
         self._ptr = None
         self._ptr = _lib.DataLoader_new(dataset._ptr, batch_size, num_workers)
+        self._dataset = dataset
         self.batch_size = batch_size
         self.num_batches = dataset.data_size // self.batch_size
-        
-    def fill_batch(self):
-        _lib.DataLoader_fillBatch(self._ptr)
         
     def reset_epoch(self):
         _lib.DataLoader_resetEpoch(self._ptr)
@@ -149,4 +144,3 @@ class DataLoader:
         if self._ptr:
             _lib.DataLoader_delete(self._ptr)
             self._ptr = None
-    

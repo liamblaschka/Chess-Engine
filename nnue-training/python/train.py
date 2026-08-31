@@ -3,7 +3,6 @@ import torch.nn as nn
 import time
 from model import NNUE
 from data_loader import DataLoader
-from data_loader import SparseBatch
 
 LEARNING_RATE = 0.001
 EPOCHS = 10
@@ -29,9 +28,8 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
         total_loss = 0.0
         
         for _ in range(dataloader.num_batches):
-            dataloader.fill_batch()
-            
-            white_features, black_features, side_to_move, evaluation = dataloader.batch.tensors
+            batch = dataloader.batch
+            white_features, black_features, side_to_move, evaluation = batch.tensors
             
             white_features = white_features.to(device)
             black_features = black_features.to(device)

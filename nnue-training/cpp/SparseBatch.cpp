@@ -4,21 +4,24 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
+#include <memory>
 
 SparseBatch::SparseBatch(int size)  : size(size), num_active_white_features(0), num_active_black_features(0) {    
-    side_to_move = new float[size];
-    evaluation = new float[size];
+    side_to_move = std::make_unique<float[]>(size);
+    evaluation = std::make_unique<float[]>(size);
 
-    white_features = new int[size * MAX_FEATURES * 2];
-    black_features = new int[size * MAX_FEATURES * 2];
+    white_features = std::make_unique<int[]>(size * MAX_ACTIVE_FEATURES * 2);
+    black_features = std::make_unique<int[]>(size * MAX_ACTIVE_FEATURES * 2);
 }
 
 void SparseBatch::fill(Dataset& dataset) {
     num_active_white_features = 0;
     num_active_black_features = 0;
 
+    int data_start = dataset.getNextBatchStart(size);
+
     for (int entry_index = 0; entry_index < size; entry_index++) {
-        const TrainingEntry& entry = dataset.getNextEntry();
+        const TrainingEntry& entry = dataset.getEntry(data_start + entry_index);
 
         side_to_move[entry_index] = static_cast<float>(entry.side_to_move);
         evaluation[entry_index] = entry.evaluation;
@@ -51,24 +54,17 @@ void SparseBatch::fill(Dataset& dataset) {
     }
 }
 
-float* SparseBatch::getSideToMove() const { return side_to_move; }
+float* SparseBatch::getSideToMove() const { return side_to_move.get(); }
 
-float* SparseBatch::getEvaluation() const { return evaluation; }
+float* SparseBatch::getEvaluation() const { return evaluation.get(); }
 
-int* SparseBatch::getWhiteFeatures() const { return white_features; }
+int* SparseBatch::getWhiteFeatures() const { return white_features.get(); }
 
-int* SparseBatch::getBlackFeatures() const { return black_features; }
+int* SparseBatch::getBlackFeatures() const { return black_features.get(); }
 
 int SparseBatch::getNumActiveWhiteFeatures() const { return num_active_white_features; }
 
 int SparseBatch::getNumActiveBlackFeatures() const { return num_active_black_features; }
-
-SparseBatch::~SparseBatch() {
-    delete[] side_to_move;
-    delete[] evaluation;
-    delete[] white_features;
-    delete[] black_features;
-}
 
 
 extern "C" {

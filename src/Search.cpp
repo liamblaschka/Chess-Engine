@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <utility>
 
-Search::Search() : nnue("nnue.bin") {}
+Search::Search() : nnue("models/nnue.bin") {}
 
 float Search::maximise(Game& game, int depth, float alpha, float beta) {
     float best_score = std::numeric_limits<float>::lowest();

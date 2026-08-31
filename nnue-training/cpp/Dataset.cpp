@@ -9,11 +9,12 @@
 #include <random>
 #include <numeric>
 #include <algorithm>
+#include <atomic>
 
-Dataset::Dataset(const std::string& file_path, int data_size) : shuffled_index(0), rng(33) {
+Dataset::Dataset(const std::string& file_path, int data_size) : data_size(data_size), rng(33), next_batch_start(0) {
     shuffled_indices.resize(data_size);
     std::iota(shuffled_indices.begin(), shuffled_indices.end(), 0);
-    resetEpoch();
+    std::shuffle(shuffled_indices.begin(), shuffled_indices.end(), rng);
 
     readCSV(file_path, data_size);
 }
@@ -115,14 +116,18 @@ float Dataset::parseEvaluation(const std::string& evaluation) const {
     return std::stof(evaluation);
 }
 
-const TrainingEntry& Dataset::getNextEntry() {
-    int index = shuffled_indices[shuffled_index++];
-
-    return data[index];
+int Dataset::getNextBatchStart(int batch_size) {
+    return next_batch_start.fetch_add(batch_size);
 }
 
+const TrainingEntry& Dataset::getEntry(int index) {
+    return data[shuffled_indices[index]];
+}
+
+int Dataset::getDataSize() const { return data_size; }
+
 void Dataset::resetEpoch() {
-    shuffled_index = 0;
+    next_batch_start = 0;
     std::shuffle(shuffled_indices.begin(), shuffled_indices.end(), rng);
 }
 
