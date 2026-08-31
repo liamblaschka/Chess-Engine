@@ -9,7 +9,7 @@ from train import train
 DATA_SIZE = 1_000_000
 BATCH_SIZE = 128
 
-DATALOADER_WORKERS = 6
+DATALOADER_WORKERS = 12
 
 def main():
     file_name = "chessData.csv"
