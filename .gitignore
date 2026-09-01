@@ -2,7 +2,11 @@
 *.pth
 *.csv
 
+*.DS_Store
+
 *.venv/
+
+*.__pychache__/
 
 # Prerequisites
 *.d
