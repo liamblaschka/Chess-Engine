@@ -2,7 +2,6 @@
 
 #include "Game.h"
 #include "Search.h"
-
 #include <string>
 
 class UCI {
