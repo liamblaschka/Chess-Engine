@@ -4,8 +4,8 @@ import time
 from model import NNUE
 from data_loader import DataLoader
 
-LEARNING_RATE = 0.002
-EPOCHS = 20
+LEARNING_RATE = 0.001
+EPOCHS = 30
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
     if torch.accelerator.is_available():
@@ -62,14 +62,19 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
             
             total_loss += loss.item()
         
-        if epoch == 4:
-            model.coalesce_weights()
-            dataloader.fill_virtual_features = False
+        # if epoch == 4:
+        #     model.coalesce_weights()
+        #     dataloader.fill_virtual_features = False
             
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        #     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         
         dataloader.reset_epoch()
         
         
         average_loss = total_loss / dataloader.num_batches
         print(f"Epoch {epoch+1}: loss {average_loss:.6f}, time {time.perf_counter() - start_time:.2f}s")
+    
+    
+    
+    if dataloader.fill_virtual_features:
+        model.coalesce_weights()
