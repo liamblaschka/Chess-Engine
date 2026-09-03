@@ -4,7 +4,7 @@ import time
 from model import NNUE
 from data_loader import DataLoader
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.002
 EPOCHS = 20
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
