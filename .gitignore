@@ -6,7 +6,7 @@
 
 *.venv/
 
-*.__pychache__/
+*__pychache__/
 
 # Prerequisites
 *.d
