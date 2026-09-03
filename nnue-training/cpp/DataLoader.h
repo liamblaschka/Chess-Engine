@@ -17,6 +17,7 @@ private:
     int num_workers;
     int required_batches;
     int remaining_batches;
+    bool fill_virtual_features;
 
     std::atomic<bool> running;
     std::mutex remaining_mutex;
@@ -32,11 +33,13 @@ private:
     std::vector<std::thread> workers;
 
 public:
-    DataLoader(Dataset& dataset, int batch_size, int num_workers);
+    DataLoader(Dataset& dataset, int batch_size, int num_workers, bool fill_virtual_features);
 
     void workerLoop();
 
     const SparseBatch* getBatch();
+
+    void setFillVirtualFeatures(bool value);
 
     void resetEpoch();
 

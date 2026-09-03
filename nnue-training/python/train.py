@@ -29,25 +29,47 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
         
         for _ in range(dataloader.num_batches):
             batch = dataloader.batch
-            white_features, black_features, side_to_move, evaluation = batch.tensors
             
-            white_features = white_features.to(device)
-            black_features = black_features.to(device)
-            side_to_move = side_to_move.to(device)
-            evaluation = evaluation.to(device)
+            batch.half_kp.white = batch.half_kp.white.to(device)
+            batch.half_kp.black = batch.half_kp.black.to(device)
+            if dataloader.fill_virtual_features:
+                batch.half_relative_kp.white = batch.half_relative_kp.white.to(device)
+                batch.half_relative_kp.black = batch.half_relative_kp.black.to(device)
+                batch.king_factor.white = batch.king_factor.white.to(device)
+                batch.king_factor.black = batch.king_factor.black.to(device)
+            batch.side_to_move = batch.side_to_move.to(device)
+            batch.evaluation = batch.evaluation.to(device)
             
             optimizer.zero_grad() # clear previous batch gradients
             
-            predictions = model(white_features, black_features, side_to_move)
+            if dataloader.fill_virtual_features:
+                predictions = model(
+                    batch.side_to_move,
+                    batch.half_kp.white, batch.half_kp.black,
+                    batch.half_relative_kp.white, batch.half_relative_kp.black,
+                    batch.king_factor.white, batch.king_factor.black
+                )
+            else:
+                predictions = model(
+                    batch.side_to_move,
+                    batch.half_kp.white, batch.half_kp.black
+                )
             
-            loss = criterion(predictions, evaluation)
+            loss = criterion(predictions, batch.evaluation)
             
             loss.backward() # backpropagation (figure out our loss)
             optimizer.step() # update the weights with optimizer
             
             total_loss += loss.item()
+        
+        if epoch == 4:
+            model.coalesce_weights()
+            dataloader.fill_virtual_features = False
             
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        
         dataloader.reset_epoch()
-            
+        
+        
         average_loss = total_loss / dataloader.num_batches
         print(f"Epoch {epoch+1}: loss {average_loss:.6f}, time {time.perf_counter() - start_time:.2f}s")

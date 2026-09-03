@@ -36,7 +36,7 @@ def main():
     torch.save(model.state_dict(), pth_path)
 
     with open(bin_path, "wb") as f:
-        for layer in [model.accumulator_w, model.accumulator_b, model.h1, model.h2, model.output]:
+        for layer in [model.w_half_kp, model.b_half_kp, model.h1, model.h2, model.output]:
             weights = (
                 layer.weight
                 .detach()
