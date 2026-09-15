@@ -17,7 +17,7 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
 
     model.to(device)
     
-    criterion = nn.MSELoss()
+    criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
     model.train()
@@ -56,10 +56,9 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
                 )
             
             wdl_scale = 410
-            wdl_predictions = torch.sigmoid(predictions / wdl_scale)
-            wdl_target = torch.sigmoid(batch.evaluation / wdl_scale)
+            wdl_targets = torch.sigmoid(batch.evaluation / wdl_scale)
             
-            loss = criterion(wdl_predictions, wdl_target)
+            loss = criterion(predictions / wdl_scale, wdl_targets)
             
             loss.backward() # backpropagation (figure out our loss)
             optimizer.step() # update the weights with optimizer
