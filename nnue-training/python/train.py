@@ -55,7 +55,11 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
                     batch.half_kp.white, batch.half_kp.black
                 )
             
-            loss = criterion(predictions, batch.evaluation)
+            wdl_scale = 410
+            wdl_predictions = torch.sigmoid(predictions / wdl_scale)
+            wdl_target = torch.sigmoid(batch.evaluation / wdl_scale)
+            
+            loss = criterion(wdl_predictions, wdl_target)
             
             loss.backward() # backpropagation (figure out our loss)
             optimizer.step() # update the weights with optimizer
