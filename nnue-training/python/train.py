@@ -5,7 +5,7 @@ from model import NNUE
 from data_loader import DataLoader
 
 LEARNING_RATE = 0.001
-EPOCHS = 5
+EPOCHS = 30
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
     if torch.accelerator.is_available():
@@ -58,7 +58,7 @@ def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEAR
             wdl_scale = 410
             wdl_targets = torch.sigmoid(batch.evaluation / wdl_scale)
             
-            loss = criterion(predictions / wdl_scale, wdl_targets)
+            loss = criterion(predictions, wdl_targets)
             
             loss.backward() # backpropagation (figure out our loss)
             optimizer.step() # update the weights with optimizer
