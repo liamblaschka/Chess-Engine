@@ -28,4 +28,7 @@ public:
 
     void updateWhiteAccumulator(std::vector<std::int16_t>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
     void updateBlackAccumulator(std::vector<std::int16_t>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
+
+    std::vector<std::int8_t> crelu16(const std::vector<std::int16_t>& input);
+    std::vector<std::int8_t> crelu32(const std::vector<std::int32_t>& input);
 };

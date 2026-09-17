@@ -32,13 +32,13 @@ float NNUE::forward(const std::vector<std::int16_t>& white_acc_values, const std
         acc_values.insert(acc_values.end(), black_acc_values.begin(), black_acc_values.end());
         acc_values.insert(acc_values.end(), white_acc_values.begin(), white_acc_values.end());
     }
-    std::vector<std::int8_t> acc_activated = crelu(acc_values);
+    std::vector<std::int8_t> acc_activated = crelu16(acc_values);
 
     std::vector<std::int32_t> h1_output = h1.forward(acc_activated);
-    std::vector<std::int8_t> h1_activated = crelu(h1_output);
+    std::vector<std::int8_t> h1_activated = crelu32(h1_output);
 
     std::vector<std::int32_t> h2_output = h2.forward(h1_activated);
-    std::vector<std::int8_t> h2_activated = crelu(h2_output);
+    std::vector<std::int8_t> h2_activated = crelu32(h2_output);
 
     return output.forward(h2_activated)[0];
 }
@@ -59,12 +59,21 @@ void NNUE::updateBlackAccumulator(std::vector<std::int16_t>& acc_values, const s
     accumulator_b.update_accumulator(acc_values, added_features, removed_features);
 }
 
-template <typename T>
-std::vector<std::int8_t> crelu(const std::vector<T>& input) {
+std::vector<std::int8_t> NNUE::crelu16(const std::vector<std::int16_t>& input) {
     std::vector<std::int8_t> output;
     output.reserve(input.size());
-    for (T value : input) {
-        output.push_back(static_cast<std::int8_t>(std::clamp<T>(value, 0, 127)));
+    for (std::int16_t value : input) {
+        output.push_back(static_cast<std::int8_t>(std::clamp<std::int16_t>(value, 0, 127)));
+    }
+
+    return output;
+}
+
+std::vector<std::int8_t> NNUE::crelu32(const std::vector<std::int32_t>& input) {
+    std::vector<std::int8_t> output;
+    output.reserve(input.size());
+    for (std::int32_t value : input) {
+        output.push_back(static_cast<std::int8_t>(std::clamp<std::int32_t>(value, 0, 127)));
     }
 
     return output;
