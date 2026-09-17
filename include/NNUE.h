@@ -10,7 +10,7 @@ class NNUE {
 private:
     static constexpr int FEATURE_SIZE = 40960;
     static constexpr int A_SIZE = 256;
-    static constexpr int H1_SIZE = 8;
+    static constexpr int H1_SIZE = 32;
     static constexpr int H2_SIZE = 16;
 
     Accumulator accumulator_w;
