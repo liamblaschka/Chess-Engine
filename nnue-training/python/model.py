@@ -85,3 +85,8 @@ class NNUE(nn.Module):
                     self.b_half_relative_kp.weight[:, half_relative_kp_idx] + self.b_king_factor.weight[:, k_idx]
                 )
                 
+    def clip_weights(self):
+        with torch.no_grad():
+            self.h1.weight.clamp_(-128/64, 127/64)
+            self.h2.weight.clamp_(-128/64, 127/64)
+            self.output.weight.clamp_(-128/64, 127/64)
