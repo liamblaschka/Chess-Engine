@@ -4,6 +4,7 @@
 #include "Accumulator.h"
 #include <vector>
 #include <string>
+#include <cstdint>
 
 class NNUE {
 private:
@@ -20,11 +21,11 @@ private:
 public:
     NNUE(const std::string& weights_file);
 
-    float forward(const std::vector<float>& white_acc_values, const std::vector<float>& black_acc_values, int side_to_move);
+    float forward(const std::vector<std::int16_t>& white_acc_values, const std::vector<std::int16_t>& black_acc_values, int side_to_move);
 
-    void refreshWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const;
-    void refreshBlackAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const;
+    void refreshWhiteAccumulator(std::vector<std::int16_t>& acc_values, const std::vector<int>& active_features) const;
+    void refreshBlackAccumulator(std::vector<std::int16_t>& acc_values, const std::vector<int>& active_features) const;
 
-    void updateWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
-    void updateBlackAccumulator(std::vector<float>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
+    void updateWhiteAccumulator(std::vector<std::int16_t>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
+    void updateBlackAccumulator(std::vector<std::int16_t>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
 };

@@ -1,12 +1,13 @@
 #include "Accumulator.h"
 #include <vector>
 #include <fstream>
+#include <cstdint>
 
 Accumulator::Accumulator(int input_size, int output_size)
     : input_size(input_size), output_size(output_size), weight(input_size * output_size), bias(output_size) {}
 
-std::vector<float> Accumulator::refresh_accumulator(const std::vector<int>& active_features) const {
-    std::vector<float> output(output_size);
+std::vector<std::int16_t> Accumulator::refresh_accumulator(const std::vector<int>& active_features) const {
+    std::vector<std::int16_t> output(output_size);
 
     for (int i = 0; i < output_size; i++) {
         output[i] = bias[i];
@@ -21,7 +22,7 @@ std::vector<float> Accumulator::refresh_accumulator(const std::vector<int>& acti
     return output;
 }
 
-void Accumulator::update_accumulator(std::vector<float>& values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const {
+void Accumulator::update_accumulator(std::vector<std::int16_t>& values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const {
     for (int feature : removed_features) {
         for (int i = 0; i < output_size; i++) {
             values[i] -= weight[feature * output_size + i];
@@ -36,6 +37,6 @@ void Accumulator::update_accumulator(std::vector<float>& values, const std::vect
 }
 
 void Accumulator::load_weights(std::ifstream& file) {
-    file.read(reinterpret_cast<char*>(weight.data()), weight.size() * sizeof(float));
-    file.read(reinterpret_cast<char*>(bias.data()), bias.size() * sizeof(float));
+    file.read(reinterpret_cast<char*>(weight.data()), weight.size() * sizeof(std::int16_t));
+    file.read(reinterpret_cast<char*>(bias.data()), bias.size() * sizeof(std::int16_t));
 }

@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <cstdint>
 
 class Search {
 private:
@@ -15,8 +16,8 @@ private:
 
     NNUE nnue;
 
-    std::vector<float> white_acc_values;
-    std::vector<float> black_acc_values;
+    std::vector<std::int16_t> white_acc_values;
+    std::vector<std::int16_t> black_acc_values;
 
     // int max_depth = 10;
 

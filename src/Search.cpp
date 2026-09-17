@@ -9,6 +9,7 @@
 #include <limits>
 #include <algorithm>
 #include <utility>
+#include <cstdint> 
 
 Search::Search() : nnue("models/nnue.bin") {}
 
