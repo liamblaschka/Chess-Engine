@@ -7,6 +7,9 @@ test:
 engine:
 	g++ -std=c++17 -Iinclude \
 	-O3 -march=native \
+	-Rpass=loop-vectorize \
+	-Rpass-missed=loop-vectorize \
+	-Rpass-analysis=loop-vectorize \
 	src/main.cpp \
 	src/UCI.cpp \
 	src/MoveGenerator.cpp \

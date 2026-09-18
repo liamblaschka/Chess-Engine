@@ -7,9 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 
-NNUE::NNUE(const std::string& weights_file)
-    : h1(A_SIZE * 2, H1_SIZE), h2(H1_SIZE, H2_SIZE), output(H2_SIZE, 1)
-{
+NNUE::NNUE(const std::string& weights_file) {
     std::ifstream file(weights_file, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Failed to open NNUE weights file.");

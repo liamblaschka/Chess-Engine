@@ -5,11 +5,9 @@
 #include <fstream>
 #include <cstdint>
 
+template <int INPUT_SIZE, int OUTPUT_SIZE>
 class alignas(64) Accumulator {
 private:
-    static constexpr int INPUT_SIZE = 40960;
-    static constexpr int OUTPUT_SIZE = 256;
-
     std::vector<std::int16_t> weight;
     std::array<std::int16_t, OUTPUT_SIZE> bias;
 

@@ -4,9 +4,11 @@
 #include <fstream>
 #include <cstdint>
 
-Accumulator::Accumulator() : weight(INPUT_SIZE * OUTPUT_SIZE) {}
+template <int INTPUT_SIZE, int OUTPUT_SIZE>
+Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::Accumulator() : weight(INPUT_SIZE * OUTPUT_SIZE) {}
 
-void Accumulator::refreshAccumulator(const std::vector<int>& active_features) {
+template <int INTPUT_SIZE, int OUTPUT_SIZE>
+void Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::refreshAccumulator(const std::vector<int>& active_features) {
     for (int i = 0; i < OUTPUT_SIZE; i++) {
         values[i] = bias[i];
     }
@@ -18,7 +20,8 @@ void Accumulator::refreshAccumulator(const std::vector<int>& active_features) {
     }
 }
 
-void Accumulator::updateAccumulator(const std::vector<int>& added_features, const std::vector<int>& removed_features) {
+template <int INTPUT_SIZE, int OUTPUT_SIZE>
+void Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::updateAccumulator(const std::vector<int>& added_features, const std::vector<int>& removed_features) {
     for (int feature : removed_features) {
         for (int i = 0; i < OUTPUT_SIZE; i++) {
             values[i] -= weight[feature * OUTPUT_SIZE + i];
@@ -32,9 +35,11 @@ void Accumulator::updateAccumulator(const std::vector<int>& added_features, cons
     }
 }
 
-const std::array<std::int16_t, Accumulator::OUTPUT_SIZE>& Accumulator::getValues() const { return values; }
+template <int INTPUT_SIZE, int OUTPUT_SIZE>
+const std::array<std::int16_t, OUTPUT_SIZE>& Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::getValues() const { return values; }
 
-void Accumulator::load_weights(std::ifstream& file) {
+template <int INTPUT_SIZE, int OUTPUT_SIZE>
+void Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::load_weights(std::ifstream& file) {
     file.read(reinterpret_cast<char*>(weight.data()), weight.size() * sizeof(std::int16_t));
     file.read(reinterpret_cast<char*>(bias.data()), bias.size() * sizeof(std::int16_t));
 }

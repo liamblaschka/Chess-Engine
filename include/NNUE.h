@@ -14,11 +14,11 @@ private:
     static constexpr int H1_SIZE = 32;
     static constexpr int H2_SIZE = 16;
 
-    Accumulator accumulator_w;
-    Accumulator accumulator_b;
-    LinearLayer h1;
-    LinearLayer h2;
-    LinearLayer output;
+    Accumulator<FEATURE_SIZE, A_SIZE> accumulator_w;
+    Accumulator<FEATURE_SIZE, A_SIZE> accumulator_b;
+    LinearLayer<A_SIZE * 2, H1_SIZE> h1;
+    LinearLayer<H1_SIZE, H2_SIZE> h2;
+    LinearLayer<H2_SIZE, 1> output;
 public:
     NNUE(const std::string& weights_file);
 
