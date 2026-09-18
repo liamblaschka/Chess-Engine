@@ -1,22 +1,26 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <fstream>
 #include <cstdint>
 
-class Accumulator {
+class alignas(64) Accumulator {
 private:
-    int input_size;
-    int output_size;
+    static constexpr int INPUT_SIZE = 40960;
+    static constexpr int OUTPUT_SIZE = 256;
 
-    std::vector<std::int16_t> weight;
-    std::vector<std::int16_t> bias;
+    std::array<std::int16_t, INPUT_SIZE * OUTPUT_SIZE> weight;
+    std::array<std::int16_t, OUTPUT_SIZE> bias;
+
+    std::array<std::int16_t, OUTPUT_SIZE> values;
+
 public:
-    Accumulator(int input_size, int output_size);
+    void refreshAccumulator(const std::vector<int>& active_features);
 
-    std::vector<std::int16_t> refresh_accumulator(const std::vector<int>& active_features) const;
+    void updateAccumulator(const std::vector<int>& added_features, const std::vector<int>& removed_features);
 
-    void update_accumulator(std::vector<std::int16_t>& values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
+    std::array<std::int16_t, OUTPUT_SIZE>& getValues();
 
     void load_weights(std::ifstream& file);
 };

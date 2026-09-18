@@ -14,7 +14,7 @@ private:
 public:
     LinearLayer(int input_size, int output_size);
 
-    std::vector<std::int32_t> forward(const std::vector<std::int8_t>& input) const;
+    void forward(const std::int8_t* input, int32_t* output) const;
 
     void load_weights(std::ifstream& file);
 };

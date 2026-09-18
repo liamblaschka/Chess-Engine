@@ -16,11 +16,6 @@ private:
 
     NNUE nnue;
 
-    std::vector<std::int16_t> white_acc_values;
-    std::vector<std::int16_t> black_acc_values;
-
-    // int max_depth = 10;
-
     std::unordered_map<std::string, Move> previous_best_moves;
 
     float maximise(Game& game, int depth, float alpha, float beta);
@@ -37,8 +32,6 @@ private:
     int scoreMove(const Move& move, const Board& board) const;
     void orderMoves(std::vector<Move>& moves, const Board& board);
 
-
-    // int pieceValue(PieceType piece_type) const;
 public:
     Search();
 

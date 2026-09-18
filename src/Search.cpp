@@ -90,8 +90,8 @@ float Search::minimise(Game& game, int depth, float alpha, float beta) {
 }
 
 Move Search::minimax(Game& game) {
-    nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(game.getBoard(), Colour::White));
-    nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(game.getBoard(), Colour::Black));
+    nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
+    nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));
 
     Move best_move;
     std::vector<Move> moves = game.getLegalMoves();
@@ -217,34 +217,34 @@ void Search::makeMove(const Move& move, Game& game) {
                 std::vector<int> black_added_features;
                 std::vector<int> black_removed_features;
                 getFeatureUpdates(black_added_features, black_removed_features, board.getKingSquare(Colour::Black), move, board);
-                nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+                nnue.updateBlackAccumulator(black_added_features, black_removed_features);
             }
             
             game.makeMove(move);
 
-            nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(board, Colour::White));
+            nnue.refreshWhiteAccumulator(getActiveFeatures(board, Colour::White));
         } else {
             if (move.type == MoveType::Castle) {
                 std::vector<int> white_added_features;
                 std::vector<int> white_removed_features;
                 getFeatureUpdates(white_added_features, white_removed_features, board.getKingSquare(Colour::White), move, board);
-                nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+                nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
             }
 
             game.makeMove(move);
 
-            nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(board, Colour::Black));
+            nnue.refreshBlackAccumulator(getActiveFeatures(board, Colour::Black));
         }
     } else {
         std::vector<int> white_added_features;
         std::vector<int> white_removed_features;
         getFeatureUpdates(white_added_features, white_removed_features, board.getKingSquare(Colour::White), move, board);
-        nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+        nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
 
         std::vector<int> black_added_features;
         std::vector<int> black_removed_features;
         getFeatureUpdates(black_added_features, black_removed_features, board.getKingSquare(Colour::Black), move, board);
-        nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+        nnue.updateBlackAccumulator(black_added_features, black_removed_features);
 
         game.makeMove(move);
     }
@@ -262,30 +262,30 @@ void Search::undoMove(const Move& move, Game& game) {
                 std::vector<int> black_added_features;
                 std::vector<int> black_removed_features;
                 getFeatureUpdates(black_removed_features, black_added_features, board.getKingSquare(Colour::Black), move, board);
-                nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+                nnue.updateBlackAccumulator(black_added_features, black_removed_features);
             }
 
-            nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(board, Colour::White));
+            nnue.refreshWhiteAccumulator(getActiveFeatures(board, Colour::White));
         } else {
             if (move.type == MoveType::Castle) {
                 std::vector<int> white_added_features;
                 std::vector<int> white_removed_features;
                 getFeatureUpdates(white_removed_features, white_added_features, board.getKingSquare(Colour::White), move, board);
-                nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+                nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
             }
 
-            nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(board, Colour::Black));
+            nnue.refreshBlackAccumulator(getActiveFeatures(board, Colour::Black));
         }
     } else {
         std::vector<int> white_added_features;
         std::vector<int> white_removed_features;
         getFeatureUpdates(white_removed_features, white_added_features, board.getKingSquare(Colour::White), move, board);
-        nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+        nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
 
         std::vector<int> black_added_features;
         std::vector<int> black_removed_features;
         getFeatureUpdates(black_removed_features, black_added_features, board.getKingSquare(Colour::Black), move, board);
-        nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+        nnue.updateBlackAccumulator(black_added_features, black_removed_features);
     }
 }
 
@@ -297,7 +297,7 @@ float Search::evaluate(const Board& board) {
         side_to_move = 1;
     }
 
-    float score = nnue.forward(white_acc_values, black_acc_values, side_to_move);
+    float score = nnue.forward(side_to_move);
     return score;
 }
 

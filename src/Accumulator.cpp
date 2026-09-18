@@ -1,40 +1,36 @@
 #include "Accumulator.h"
+#include <array>
 #include <vector>
 #include <fstream>
 #include <cstdint>
 
-Accumulator::Accumulator(int input_size, int output_size)
-    : input_size(input_size), output_size(output_size), weight(input_size * output_size), bias(output_size) {}
-
-std::vector<std::int16_t> Accumulator::refresh_accumulator(const std::vector<int>& active_features) const {
-    std::vector<std::int16_t> output(output_size);
-
-    for (int i = 0; i < output_size; i++) {
-        output[i] = bias[i];
+void Accumulator::refreshAccumulator(const std::vector<int>& active_features) {
+    for (int i = 0; i < OUTPUT_SIZE; i++) {
+        values[i] = bias[i];
     }
 
     for (int feature : active_features) {
-        for (int i = 0; i < output_size; i++) {
-            output[i] += weight[feature * output_size + i];
+        for (int i = 0; i < OUTPUT_SIZE; i++) {
+            values[i] += weight[feature * OUTPUT_SIZE + i];
         }
     }
-
-    return output;
 }
 
-void Accumulator::update_accumulator(std::vector<std::int16_t>& values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const {
+void Accumulator::updateAccumulator(const std::vector<int>& added_features, const std::vector<int>& removed_features) {
     for (int feature : removed_features) {
-        for (int i = 0; i < output_size; i++) {
-            values[i] -= weight[feature * output_size + i];
+        for (int i = 0; i < OUTPUT_SIZE; i++) {
+            values[i] -= weight[feature * OUTPUT_SIZE + i];
         }
     }
 
     for (int feature : added_features) {
-        for (int i = 0; i < output_size; i++) {
-            values[i] += weight[feature * output_size + i];
+        for (int i = 0; i < OUTPUT_SIZE; i++) {
+            values[i] += weight[feature * OUTPUT_SIZE + i];
         }
     }
 }
+
+std::array<std::int16_t, Accumulator::OUTPUT_SIZE>& Accumulator::getValues() { return values; }
 
 void Accumulator::load_weights(std::ifstream& file) {
     file.read(reinterpret_cast<char*>(weight.data()), weight.size() * sizeof(std::int16_t));
