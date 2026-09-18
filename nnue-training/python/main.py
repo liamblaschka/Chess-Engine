@@ -6,8 +6,8 @@ from data_loader import Dataset
 from data_loader import DataLoader
 from train import train
 
-DATA_SIZE = 5_000_000
-BATCH_SIZE = 512
+DATA_SIZE = 12_000_000
+BATCH_SIZE = 2048
 DATALOADER_WORKERS = 12
 
 ACTIVATION_SCALE = 127
