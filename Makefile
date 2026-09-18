@@ -17,7 +17,5 @@ engine:
 	src/Board.cpp \
 	src/Game.cpp \
 	src/Search.cpp \
-	src/Accumulator.cpp \
-	src/LinearLayer.cpp \
 	src/NNUE.cpp \
 	-o build/chess \

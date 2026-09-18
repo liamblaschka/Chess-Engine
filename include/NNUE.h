@@ -1,7 +1,7 @@
 #pragma once
 
-#include "LinearLayer.h"
-#include "Accumulator.h"
+#include "Accumulator.hpp"
+#include "LinearLayer.hpp"
 #include <vector>
 #include <array>
 #include <string>

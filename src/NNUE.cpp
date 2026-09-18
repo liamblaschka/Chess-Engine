@@ -1,5 +1,6 @@
 #include "NNUE.h"
-#include "LinearLayer.h"
+#include "Accumulator.hpp"
+#include "LinearLayer.hpp"
 #include <vector>
 #include <string>
 #include <fstream>
