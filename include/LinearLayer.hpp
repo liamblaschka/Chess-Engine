@@ -7,8 +7,8 @@
 template <int INPUT_SIZE, int OUTPUT_SIZE>
 class LinearLayer {
 private:
-    std::array<std::int8_t, INPUT_SIZE * OUTPUT_SIZE> weight;
-    std::array<std::int32_t, OUTPUT_SIZE> bias;
+    alignas(64) std::array<std::int8_t, INPUT_SIZE * OUTPUT_SIZE> weight;
+    alignas(64) std::array<std::int32_t, OUTPUT_SIZE> bias;
 public:
     void forward(const std::int8_t* input, int32_t* output) const;
 
@@ -18,6 +18,9 @@ public:
 
 template <int INPUT_SIZE, int OUTPUT_SIZE>
 void LinearLayer<INPUT_SIZE, OUTPUT_SIZE>::forward(const std::int8_t* input, int32_t* output) const {
+    input = static_cast<const std::int8_t*>(__builtin_assume_aligned(input, 64));
+    output = static_cast<std::int32_t*>(__builtin_assume_aligned(output, 64));
+
     for (int i = 0; i < OUTPUT_SIZE; i++) {
         output[i] = bias[i];
     }

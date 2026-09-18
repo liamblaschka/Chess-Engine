@@ -67,13 +67,33 @@ void NNUE::updateBlackAccumulator(const std::vector<int>& added_features, const 
 }
 
 void NNUE::crelu16(const std::int16_t* input, std::int8_t* output, int size) {
+    input = static_cast<const std::int16_t*>(__builtin_assume_aligned(input, 64));
+    output = static_cast<std::int8_t*>(__builtin_assume_aligned(output, 64));
+
     for (int i = 0; i < size; i++) {
-        output[i] = static_cast<std::int8_t>(std::clamp<std::int16_t>(input[i], 0, 127));
+        std::int16_t value = input[i];
+        if (value < 0) {
+            output[i] = 0;
+        } else if (value > 127) {
+            output[i] = 127;
+        } else {
+            output[i] = static_cast<std::int8_t>(value);
+        }
     }
 }
 
 void NNUE::crelu32(const std::int32_t* input, std::int8_t* output, int size) {
+    input = static_cast<const std::int32_t*>(__builtin_assume_aligned(input, 64));
+    output = static_cast<std::int8_t*>(__builtin_assume_aligned(output, 64));
+
     for (int i = 0; i < size; i++) {
-        output[i] = static_cast<std::int8_t>(std::clamp<std::int32_t>(input[i], 0, 127));
+        std::int32_t value = input[i];
+        if (value < 0) {
+            output[i] = 0;
+        } else if (value > 127) {
+            output[i] = 127;
+        } else {
+            output[i] = static_cast<std::int8_t>(value);
+        }
     }
 }

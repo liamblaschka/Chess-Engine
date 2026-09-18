@@ -6,12 +6,11 @@
 #include <cstdint>
 
 template <int INPUT_SIZE, int OUTPUT_SIZE>
-class alignas(64) Accumulator {
+class Accumulator {
 private:
     std::vector<std::int16_t> weight;
-    std::array<std::int16_t, OUTPUT_SIZE> bias;
-
-    std::array<std::int16_t, OUTPUT_SIZE> values;
+    alignas(64) std::array<std::int16_t, OUTPUT_SIZE> bias;
+    alignas(64) std::array<std::int16_t, OUTPUT_SIZE> values;
 
 public:
     Accumulator();

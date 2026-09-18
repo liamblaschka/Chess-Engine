@@ -99,7 +99,7 @@ Move Search::minimax(Game& game) {
     float alpha = std::numeric_limits<float>::lowest();
     float beta = std::numeric_limits<float>::max();
 
-    int depth = 6;
+    int depth = 8;
 
     if (game.getTurn() == Colour::White) {
         float best_score = std::numeric_limits<float>::lowest();
