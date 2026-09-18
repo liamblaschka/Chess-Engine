@@ -5,7 +5,7 @@ from model import NNUE
 from data_loader import DataLoader
 
 LEARNING_RATE = 0.001
-EPOCHS = 10
+EPOCHS = 30
 
 def train(model: NNUE, dataloader: DataLoader, epochs=EPOCHS, learning_rate=LEARNING_RATE):
     if torch.accelerator.is_available():

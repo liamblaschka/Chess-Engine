@@ -7,7 +7,6 @@ test:
 engine:
 	g++ -std=c++17 \
 	-O3 -march=native \
-	-fopt-info-vec-all=vectorization.txt \
 	-Iinclude \
 	src/main.cpp \
 	src/UCI.cpp \
