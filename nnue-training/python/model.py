@@ -5,9 +5,9 @@ HALF_KP_SIZE = 40960
 HALF_RELATIVE_KP_SIZE = 2250
 KING_FACTOR_SIZE = 64
 
-A_SIZE = 256
-H1_SIZE = 32
-H2_SIZE = 16
+A_SIZE = 512
+H1_SIZE = 16
+H2_SIZE = 32
 
 class NNUE(nn.Module):
     def __init__(self, a_size=A_SIZE, h1_size=H1_SIZE, h2_size=H2_SIZE):
