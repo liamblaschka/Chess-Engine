@@ -39,7 +39,7 @@ template <int INTPUT_SIZE, int OUTPUT_SIZE>
 const std::array<std::int16_t, OUTPUT_SIZE>& Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::getValues() const { return values; }
 
 template <int INTPUT_SIZE, int OUTPUT_SIZE>
-void Accumulator<INTPUT_SIZE, OUTPUT_SIZE>::load_weights(std::ifstream& file) {
+void Accumulator<INPUT_SIZE, OUTPUT_SIZE>::load_weights(std::ifstream& file) {
     file.read(reinterpret_cast<char*>(weight.data()), weight.size() * sizeof(std::int16_t));
     file.read(reinterpret_cast<char*>(bias.data()), bias.size() * sizeof(std::int16_t));
 }
