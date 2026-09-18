@@ -66,7 +66,7 @@ void NNUE::updateBlackAccumulator(const std::vector<int>& added_features, const 
     accumulator_b.updateAccumulator(added_features, removed_features);
 }
 
-void NNUE::crelu16(const std::int16_t* input, std::int8_t* output, int size) {
+void NNUE::crelu16(const std::int16_t* __restrict__ input, std::int8_t* __restrict__ output, int size) {
     input = static_cast<const std::int16_t*>(__builtin_assume_aligned(input, 64));
     output = static_cast<std::int8_t*>(__builtin_assume_aligned(output, 64));
 
@@ -82,7 +82,7 @@ void NNUE::crelu16(const std::int16_t* input, std::int8_t* output, int size) {
     }
 }
 
-void NNUE::crelu32(const std::int32_t* input, std::int8_t* output, int size) {
+void NNUE::crelu32(const std::int32_t* __restrict__ input, std::int8_t* __restrict__ output, int size) {
     input = static_cast<const std::int32_t*>(__builtin_assume_aligned(input, 64));
     output = static_cast<std::int8_t*>(__builtin_assume_aligned(output, 64));
 

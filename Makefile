@@ -5,11 +5,10 @@ test:
 	g++ -Iinclude src/Board.cpp src/Piece.cpp src/MoveGenerator.cpp tests/MoveGeneratorTests.cpp -o build/tests -std=c++17
 
 engine:
-	g++ -std=c++17 -Iinclude \
+	g++ -std=c++17 \
 	-O3 -march=native \
-	-Rpass=loop-vectorize \
-	-Rpass-missed=loop-vectorize \
-	-Rpass-analysis=loop-vectorize \
+	-fopt-info-vec-all=vectorization.txt \
+	-Iinclude \
 	src/main.cpp \
 	src/UCI.cpp \
 	src/MoveGenerator.cpp \

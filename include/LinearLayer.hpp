@@ -17,7 +17,7 @@ public:
 
 
 template <int INPUT_SIZE, int OUTPUT_SIZE>
-void LinearLayer<INPUT_SIZE, OUTPUT_SIZE>::forward(const std::int8_t* input, int32_t* output) const {
+void LinearLayer<INPUT_SIZE, OUTPUT_SIZE>::forward(const std::int8_t* __restrict__ input, int32_t* __restrict__ output) const {
     input = static_cast<const std::int8_t*>(__builtin_assume_aligned(input, 64));
     output = static_cast<std::int32_t*>(__builtin_assume_aligned(output, 64));
 
