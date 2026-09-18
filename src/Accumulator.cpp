@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cstdint>
 
+Accumulator::Accumulator() : weight(INPUT_SIZE * OUTPUT_SIZE) {}
+
 void Accumulator::refreshAccumulator(const std::vector<int>& active_features) {
     for (int i = 0; i < OUTPUT_SIZE; i++) {
         values[i] = bias[i];
@@ -30,7 +32,7 @@ void Accumulator::updateAccumulator(const std::vector<int>& added_features, cons
     }
 }
 
-std::array<std::int16_t, Accumulator::OUTPUT_SIZE>& Accumulator::getValues() { return values; }
+const std::array<std::int16_t, Accumulator::OUTPUT_SIZE>& Accumulator::getValues() const { return values; }
 
 void Accumulator::load_weights(std::ifstream& file) {
     file.read(reinterpret_cast<char*>(weight.data()), weight.size() * sizeof(std::int16_t));

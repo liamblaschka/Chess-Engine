@@ -6,6 +6,7 @@ test:
 
 engine:
 	g++ -std=c++17 -Iinclude \
+	-O3 -march=native \
 	src/main.cpp \
 	src/UCI.cpp \
 	src/MoveGenerator.cpp \
