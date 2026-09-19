@@ -18,6 +18,8 @@ private:
 
     CastleRights white_castle_rights;
     CastleRights black_castle_rights;
+
+    int en_passant_square = -1;
 public:
     Board();
     void makeMove(const Move& move);
@@ -28,7 +30,6 @@ public:
     int getKingSquare(Colour colour) const;
     bool isKingInCheck(Colour colour) const;
     bool isInsufficientMaterial() const;
-    std::string getPositionKey(const std::vector<Move>& legal_moves) const;
     int countPieces() const;
     const Piece& getPiece(int square) const;
     const Piece& getPiece(int rank, int file) const;
@@ -38,7 +39,8 @@ public:
     void setTurn(Colour colour);
     CastleRights getCastleRights(Colour colour) const;
     void setCastleRights(Colour colour, CastleRights rights);
+    int getEnPassantSquare() const;
+    void setEnPassantSquare(int square);
     const std::array<Piece, 64>& getSquares() const;
     void clear();
-    void draw();
 };

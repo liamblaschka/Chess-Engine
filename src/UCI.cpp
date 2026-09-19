@@ -96,7 +96,7 @@ void UCI::position(const std::string& command) {
 }
 
 void UCI::go() {
-    Move best_move = search.minimax(game);
+    Move best_move = search.minimax(game).first;
 
     std::cout << "bestmove " << moveToUCI(best_move) << '\n';
     std::cout.flush();

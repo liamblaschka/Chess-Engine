@@ -71,20 +71,12 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     }
 
     // En passant
-    const MoveState* last_move = board.getLastMove();
-    if (last_move != nullptr) {
-        int from_rank = last_move->move.from / 8;
-        int to_rank = last_move->move.to / 8;
-        int to_file = last_move->move.to % 8;
-        const Piece& last_move_piece = board.getPiece(last_move->move.to);
-        if (last_move_piece.type == PieceType::Pawn && std::abs(to_rank - from_rank) == 2) {
-            if (to_rank == rank) {
-                if (to_file == file - 1) {
-                    moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::EnPassant));
-                } else if (to_file == file + 1) {
-                    moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::EnPassant));
-                }
-            }
+    int en_passant_square = board.getEnPassantSquare();
+    if (en_passant_square != -1) {
+        int en_passant_rank = en_passant_square / 8;
+        int en_passant_file = en_passant_square % 8;
+        if (en_passant_rank == rank + direction && std::abs(en_passant_file - file) == 1) {
+            moves.push_back(Move(rank, file, en_passant_rank, en_passant_file, MoveType::EnPassant));
         }
     }
 }

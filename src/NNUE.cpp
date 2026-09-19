@@ -29,8 +29,8 @@ float NNUE::forward(int side_to_move) {
     alignas(64) std::array<std::int8_t, H2_SIZE> h2_activated;
     alignas(64) std::int32_t output_value;
 
-    std::array<std::int16_t, A_SIZE> white_acc_values = accumulator_w.getValues();
-    std::array<std::int16_t, A_SIZE> black_acc_values = accumulator_b.getValues();
+    const std::array<std::int16_t, A_SIZE>& white_acc_values = accumulator_w.getValues();
+    const std::array<std::int16_t, A_SIZE>& black_acc_values = accumulator_b.getValues();
     if (side_to_move == 0) {
         crelu16(white_acc_values.data(), acc_activated.data(), A_SIZE);
         crelu16(black_acc_values.data(), acc_activated.data() + A_SIZE, A_SIZE);

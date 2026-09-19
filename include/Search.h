@@ -5,13 +5,14 @@
 #include "Piece.h"
 #include "NNUE.h"
 #include <vector>
+#include <utility>
 #include <unordered_map>
 #include <string>
 #include <cstdint>
 
 class Search {
 private:
-    static constexpr int CHECKMATE_SCORE = 100000;
+    static constexpr int CHECKMATE_SCORE = 100'000;
     static constexpr int DRAW_SCORE = 0;
 
     NNUE nnue;
@@ -30,10 +31,11 @@ private:
     std::vector<int> getActiveFeatures(const Board& board, Colour colour) const;
 
     int scoreMove(const Move& move, const Board& board) const;
-    void orderMoves(std::vector<Move>& moves, const Board& board);
+    void orderMoves(std::vector<Move>& moves, const Game& game);
 
 public:
     Search();
 
-    Move minimax(Game& game);
+    std::pair<Move, float> minimax(Game& game, int depth = 6);
+    std::vector<std::pair<Move, float>> getScoredMoves(Game& game, int depth);
 };

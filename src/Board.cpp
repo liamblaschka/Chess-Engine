@@ -2,7 +2,7 @@
 #include "Piece.h"
 #include "SquareConstants.h"
 #include <array>
-#include <iostream>
+#include <cmath>
 
 Board::Board() {
     squares = {};
@@ -45,10 +45,14 @@ Board::Board() {
 }
 
 void Board::makeMove(const Move& move) {
+    Piece moving_piece = squares[move.from];
+
+    int previous_en_passant_square = en_passant_square;
+
     // Move
     switch (move.type) {
         case MoveType::Normal: {
-            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights, previous_en_passant_square});
 
             // Castle rights if rook is captured
             const Piece& captured_piece = squares[move.to];
@@ -73,9 +77,7 @@ void Board::makeMove(const Move& move) {
             break;
         }
         case MoveType::Castle: {
-            Colour colour = squares[move.from].colour;
-
-            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights, previous_en_passant_square});
 
             squares[move.to] = squares[move.from];
             squares[move.from] = Piece();
@@ -104,7 +106,7 @@ void Board::makeMove(const Move& move) {
             int to_rank = move.to / 8;
             int direction = to_rank - from_rank;
             int captured_square = move.to - (8 * direction);
-            move_history.push_back({move, squares[captured_square], captured_square, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[captured_square], captured_square, white_castle_rights, black_castle_rights, previous_en_passant_square});
 
             squares[move.to] = squares[move.from];
             squares[move.from] = Piece();
@@ -112,7 +114,7 @@ void Board::makeMove(const Move& move) {
             break;
         }
         case MoveType::Promotion: {
-            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights, previous_en_passant_square});
 
             squares[move.to] = move.promotion_piece;
             squares[move.from] = Piece();
@@ -148,6 +150,12 @@ void Board::makeMove(const Move& move) {
                 black_castle_rights.king_side = false;
             }
         }
+    }
+
+    // Update en passant state
+    en_passant_square = -1;
+    if (moving_piece.type == PieceType::Pawn && std::abs(move.to - move.from) == 16) {
+        en_passant_square = (move.from + move.to) / 2;
     }
 
     turn = oppositeColour(turn);
@@ -211,6 +219,7 @@ void Board::undoMove() {
             
     white_castle_rights = previous.white_castle_rights;
     black_castle_rights = previous.black_castle_rights;
+    en_passant_square = previous.en_passant_square;
 
     turn = oppositeColour(turn);
 }
@@ -428,89 +437,6 @@ bool Board::isInsufficientMaterial() const {
     return false;
 }
 
-std::string Board::getPositionKey(const std::vector<Move>& legal_moves) const {
-    std::string key;
-
-    // Board position
-    for (int rank = 7; rank >= 0; rank--) {
-        int empty_squares = 0;
-
-        for (int file = 0; file < 8; file++) {
-            const Piece& piece = squares[rank * 8 + file];
-
-            if (piece.type == PieceType::None) {
-                empty_squares++;
-                continue;
-            }
-
-            if (empty_squares > 0) {
-                key += std::to_string(empty_squares);
-                empty_squares = 0;
-            }
-
-            key += piece.getSymbol();
-        }
-
-        if (empty_squares > 0) {
-            key += std::to_string(empty_squares);
-        }
-
-        if (rank > 0) {
-            key += '/';
-        }
-    }
-
-    // Turn
-    if (turn == Colour::White) {
-        key += " w ";
-    } else {
-        key += " b ";
-    }
-
-    // Castling rights
-    bool has_castling_rights = false;
-    if (white_castle_rights.king_side) {
-        key += 'K';
-        has_castling_rights = true;
-    }
-    if (white_castle_rights.queen_side) {
-        key += 'Q';
-        has_castling_rights = true;
-    }
-    if (black_castle_rights.king_side) {
-        key += 'k';
-        has_castling_rights = true;
-    }
-    if (black_castle_rights.queen_side) {
-        key += 'q';
-        has_castling_rights = true;
-    }
-    if (!has_castling_rights) {
-        key += '-';
-    }
-
-    // En passant
-    key += ' ';
-    bool en_passant_available = false;
-    for (const Move& move : legal_moves) {
-        if (move.type == MoveType::EnPassant) {
-            int target_rank = move.to / 8;
-            int target_file = move.to % 8;
-
-            key += static_cast<char>('a' + target_file);
-            key += static_cast<char>('1' + target_rank);
-
-            en_passant_available = true;
-            break;
-        }
-    }
-    if (!en_passant_available) {
-        key += '-';
-    }
-
-    return key;
-}
-
 int Board::countPieces() const {
     int count = 0;
     for (const Piece& piece : squares) {
@@ -560,48 +486,24 @@ void Board::setCastleRights(Colour colour, CastleRights rights) {
     }
 }
 
+int Board::getEnPassantSquare() const { return en_passant_square; }
+
+void Board::setEnPassantSquare(int square) { en_passant_square = square; }
+
 void Board::clear() {
     squares.fill(Piece());
+
+    turn = Colour::White;
+
+    white_castle_rights = {false, false};
+    black_castle_rights = {false, false};
+
+    white_king_square = -1;
+    black_king_square = -1;
+
+    en_passant_square = -1;
+    
+    move_history.clear();
 }
 
 const std::array<Piece, 64>& Board::getSquares() const { return squares; }
-
-void Board::draw() {
-    for (int rank = 7; rank >= 0; rank--) {
-        std::cout << (rank + 1) << " ";
-        for (int file = 0; file < 8; file++) {
-            char piece_symbol;
-            switch (squares[rank * 8 + file].type) {
-                case PieceType::Pawn:
-                    piece_symbol = 'P';
-                    break;
-                case PieceType::Rook:
-                    piece_symbol = 'R';
-                    break;
-                case PieceType::Knight:
-                    piece_symbol = 'N';
-                    break;
-                case PieceType::Bishop:
-                    piece_symbol = 'B';
-                    break;
-                case PieceType::Queen:
-                    piece_symbol = 'Q';
-                    break;
-                case PieceType::King:
-                    piece_symbol = 'K';
-                    break;
-                case PieceType::None:
-                    piece_symbol = '.';
-                    break;
-            }
-
-            if (squares[rank * 8 + file].colour == Colour::Black) {
-                piece_symbol -= ('A' - 'a');
-            }
-
-            std::cout << piece_symbol << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << "  a b c d e f g h" << std::endl;
-}

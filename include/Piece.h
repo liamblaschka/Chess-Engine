@@ -46,6 +46,8 @@ struct Piece {
                 break;
             case PieceType::None:
                 return ' ';
+            default:
+                return ' ';
         }
         if (colour == Colour::White) {
             symbol += ('A' - 'a');

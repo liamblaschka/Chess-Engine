@@ -33,4 +33,6 @@ struct MoveState {
 
     CastleRights white_castle_rights;
     CastleRights black_castle_rights;
+
+    int en_passant_square;
 };
