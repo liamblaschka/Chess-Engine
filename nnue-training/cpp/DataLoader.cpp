@@ -2,6 +2,7 @@
 #include "Dataset.h"
 #include "SparseBatch.h"
 #include <vector>
+#include <thread>
 #include <memory>
 #include <utility>
 #include <mutex>

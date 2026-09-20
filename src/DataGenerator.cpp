@@ -16,7 +16,7 @@
 #include <cmath>
 #include <iostream>
 
-DataGenerator::DataGenerator() : rng(rd()), prob_distribution(0.0, 1.0) {}
+DataGenerator::DataGenerator() : rng(rd()), prob_distribution(0.0, 1.0), search(game) {}
 
 void DataGenerator::playGames() {
     std::filesystem::create_directories("data");
@@ -25,16 +25,20 @@ void DataGenerator::playGames() {
         throw std::runtime_error("Failed to open file.");
     }
     file << "FEN,Evaluation,GameResult" << "\n";
+    
+    auto progress_start = std::chrono::steady_clock::now();
 
     std::size_t num_sampled_positions = 0;
     for (int i = 0; i < NUM_GAMES; i++) {
-        Game game;
+        game = Game();
+        search.reset();
+
         int ply_count = 0;
         std::vector<std::string> saved_positions;
         GameState game_state = GameState::Playing;
         while (game_state == GameState::Playing || game_state == GameState::Check) {
             if (ply_count < RANDOM_PLIES) {
-                std::vector<std::pair<Move, float>> scored_moves = search.getScoredMoves(game, PLAY_DEPTH);
+                std::vector<std::pair<Move, float>> scored_moves = search.getScoredMoves(PLAY_DEPTH);
                 float best_score = scored_moves[0].second;
                 if (game.getTurn() == Colour::White) {
                     for (const auto& [move, score] : scored_moves) {
@@ -56,10 +60,10 @@ void DataGenerator::playGames() {
                 std::uniform_int_distribution<std::size_t> dist(0, candidate_moves.size() - 1);
                 Move selected_move = candidate_moves[dist(rng)].first;
                 
-                game.makeMove(selected_move);
+                search.makeMove(selected_move);
                 ply_count++;
             } else if (prob_distribution(rng) < SAMPLE_PROBABILITY) {
-                auto [best_move, best_score] = search.minimax(game, EVAL_DEPTH);
+                auto [best_move, best_score] = search.run(EVAL_DEPTH);
 
                 if (std::abs(best_score) < CHECKMATE_SCORE) {
                     std::stringstream position_entry;
@@ -70,11 +74,11 @@ void DataGenerator::playGames() {
                     num_sampled_positions++;
                 }
                 
-                game.makeMove(best_move);
+                search.makeMove(best_move);
                 ply_count++;
             } else {
-                auto [best_move, best_score] = search.minimax(game, PLAY_DEPTH);
-                game.makeMove(best_move);
+                auto [best_move, best_score] = search.run(PLAY_DEPTH);
+                search.makeMove(best_move);
                 ply_count++;
             }
 
@@ -97,7 +101,14 @@ void DataGenerator::playGames() {
 
 
         if ((i + 1) % 100 == 0) {
-            std::cout << "Games: " << i + 1 << " / " << NUM_GAMES << " | Positions: " << num_sampled_positions << '\n';
+            auto now = std::chrono::steady_clock::now();
+            double seconds = std::chrono::duration<double>(now - progress_start).count();
+
+            std::cout << "Games: " << i + 1 << " / " << NUM_GAMES
+                      << " | Positions: " << num_sampled_positions
+                      << " | Time: " << seconds << "s\n";
+            
+            progress_start = now;
         }
     }
 }

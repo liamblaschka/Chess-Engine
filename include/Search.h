@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <string>
 #include <cstdint>
+#include <thread>
+#include <atomic>
 
 class Search {
 private:
@@ -16,16 +18,21 @@ private:
     static constexpr int DRAW_SCORE = 0;
 
     NNUE nnue;
+    Game& game;
 
-    std::unordered_map<std::string, Move> previous_best_moves;
+    // std::unordered_map<std::string, Move> previous_best_moves;
 
-    float maximise(Game& game, int depth, float alpha, float beta);
-    float minimise(Game& game, int depth, float alpha, float beta);
+    unsigned int max_workers;
+    std::atomic<int> move_index;
+
+    std::pair<Move, float> minimax(Game game, NNUE nnue, std::vector<Move>& moves, int depth);
+    float maximise(Game& game, NNUE& nnue, int depth, float alpha, float beta);
+    float minimise(Game& game, NNUE& nnue, int depth, float alpha, float beta);
 
     void getFeatureUpdates(std::vector<int>& after_move_features, std::vector<int>& before_move_features, int king_square, const Move& move, const Board& board);
-    void makeMove(const Move& move, Game& game);
-    void undoMove(const Move& move, Game& game);
-    float evaluate(const Board& board);
+    void makeMove(const Move& move, Game& game, NNUE& nnue);
+    void undoMove(const Move& move, Game& game, NNUE& nnue);
+    float evaluate(const NNUE& nnue, Colour side_to_move) const;
 
     int getFeature(int square, const Piece& piece, int king_square) const;
     std::vector<int> getActiveFeatures(const Board& board, Colour colour) const;
@@ -34,8 +41,14 @@ private:
     void orderMoves(std::vector<Move>& moves, const Game& game);
 
 public:
-    Search();
+    Search(Game& game);
 
-    std::pair<Move, float> minimax(Game& game, int depth = 6);
-    std::vector<std::pair<Move, float>> getScoredMoves(Game& game, int depth);
+    std::pair<Move, float> run(int depth = 6);
+
+    std::vector<std::pair<Move, float>> getScoredMoves(int depth);
+
+    void makeMove(const Move& move);
+    void undoMove(const Move& move);
+
+    void reset();
 };

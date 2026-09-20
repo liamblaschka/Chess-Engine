@@ -16,6 +16,7 @@ private:
     static constexpr float RANDOM_MOVE_THRESHOLD = 30.0f;
     static constexpr float CHECKMATE_SCORE = 100'000.0f;
 
+    Game game;
     Search search;
 
     std::random_device rd;

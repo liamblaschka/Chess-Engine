@@ -11,9 +11,9 @@ enum class PieceType {
 };
 
 enum class Colour {
-    White,
-    Black,
-    None
+    White = 0,
+    Black = 1,
+    None = 2
 };
 
 struct Piece {
