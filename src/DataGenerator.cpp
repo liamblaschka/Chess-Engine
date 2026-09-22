@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 
 DataGenerator::DataGenerator() : rng(rd()), prob_distribution(0.0, 1.0), search(game) {}
 
@@ -38,17 +39,32 @@ void DataGenerator::playGames() {
         GameState game_state = GameState::Playing;
         while (game_state == GameState::Playing || game_state == GameState::Check) {
             if (ply_count < RANDOM_PLIES) {
-                std::vector<std::pair<Move, float>> scored_moves = search.getScoredMoves(PLAY_DEPTH);
-                float best_score = scored_moves[0].second;
-                if (game.getTurn() == Colour::White) {
-                    for (const auto& [move, score] : scored_moves) {
-                        best_score = std::max(best_score, score);
-                    }
-                } else {
-                    for (const auto& [move, score] : scored_moves) {
-                        best_score = std::min(best_score, score);
-                    }
+                std::vector<Move> moves = game.getLegalMoves();
+                float best_score = std::numeric_limits<float>::lowest();
+                std::vector<std::pair<Move, float>> scored_moves;
+                for (const Move& move : moves) {
+                    search.makeMove(move);
+                    float score = -search.run(PLAY_DEPTH).second;
+                    search.undoMove(move);
+
+                    scored_moves.push_back({move, score});
+
+                    best_score = std::max(best_score, score);
                 }
+
+
+
+                // std::vector<std::pair<Move, float>> scored_moves = search.getScoredMoves(PLAY_DEPTH);
+                // float best_score = scored_moves[0].second;
+                // if (game.getTurn() == Colour::White) {
+                //     for (const auto& [move, score] : scored_moves) {
+                //         best_score = std::max(best_score, score);
+                //     }
+                // } else {
+                //     for (const auto& [move, score] : scored_moves) {
+                //         best_score = std::min(best_score, score);
+                //     }
+                // }
                 
                 std::vector<std::pair<Move, float>> candidate_moves;
                 for (const auto& [move, score] : scored_moves) {
@@ -66,6 +82,10 @@ void DataGenerator::playGames() {
                 auto [best_move, best_score] = search.run(EVAL_DEPTH);
 
                 if (std::abs(best_score) < CHECKMATE_SCORE) {
+                    if (game.getTurn() == Colour::Black) {
+                        best_score = -best_score;
+                    }
+
                     std::stringstream position_entry;
                     position_entry << game.getPositionFen();
                     position_entry << ',' << std::fixed << std::setprecision(2) << best_score;
@@ -77,7 +97,7 @@ void DataGenerator::playGames() {
                 search.makeMove(best_move);
                 ply_count++;
             } else {
-                auto [best_move, best_score] = search.run(PLAY_DEPTH);
+                const auto& [best_move, best_score] = search.run(PLAY_DEPTH);
                 search.makeMove(best_move);
                 ply_count++;
             }

@@ -6,6 +6,7 @@
 #include <array>
 #include <vector>
 #include <string>
+#include <cstdint>
 
 class Board {
 private:
@@ -20,6 +21,11 @@ private:
     CastleRights black_castle_rights;
 
     int en_passant_square = -1;
+
+    std::uint64_t zobrist_key;
+
+    std::uint64_t calculateZobristKey();
+
 public:
     Board();
     void makeMove(const Move& move);
@@ -42,5 +48,8 @@ public:
     int getEnPassantSquare() const;
     void setEnPassantSquare(int square);
     const std::array<Piece, 64>& getSquares() const;
+
+    std::uint64_t getZobristKey() const;
+
     void clear();
 };

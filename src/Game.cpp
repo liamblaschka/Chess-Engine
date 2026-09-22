@@ -6,6 +6,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <cctype>
+#include <cstdint>
 
 Game::Game() {
     current_legal_moves = move_generator.generateLegalMoves(board);
@@ -387,3 +388,5 @@ std::string Game::getPositionFen() const {
 
     return fen;
 }
+
+std::uint64_t Game::getZobristKey() const { return board.getZobristKey(); }

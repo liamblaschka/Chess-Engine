@@ -2,6 +2,7 @@
 
 #include "Piece.h"
 #include "CastleRights.h"
+#include <cstdint>
 
 enum class MoveType {
     Normal,
@@ -35,4 +36,6 @@ struct MoveState {
     CastleRights black_castle_rights;
 
     int en_passant_square;
+
+    std::uint64_t zobrist_key;
 };

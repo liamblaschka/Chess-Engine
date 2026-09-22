@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <cstdint>
 
 enum class GameState {
     Playing,
@@ -44,4 +45,6 @@ public:
     std::string getPositionKey() const;
     std::string getPositionFen() const;
     void setPosition(const std::string& fen);
+
+    std::uint64_t getZobristKey() const;
 };

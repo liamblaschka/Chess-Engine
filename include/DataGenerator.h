@@ -8,6 +8,9 @@
 
 class DataGenerator {
 private:
+    // static constexpr int PLAY_DEPTH = 3;
+    // static constexpr int EVAL_DEPTH = 4;
+
     static constexpr int PLAY_DEPTH = 3;
     static constexpr int EVAL_DEPTH = 4;
     static constexpr int NUM_GAMES = 1'000;

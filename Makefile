@@ -15,6 +15,7 @@ engine:
 	src/Board.cpp \
 	src/Game.cpp \
 	src/Search.cpp \
+	src/TranspositionTable.cpp \
 	src/NNUE.cpp \
 	-o build/chess \
 
@@ -36,8 +37,8 @@ engine:
 
 datagenerator:
 	g++ -std=c++17 \
-	-O3 -march=native \
 	-Iinclude \
+	-O3 -march=native \
 	src/DataGeneratorMain.cpp \
 	src/DataGenerator.cpp \
 	src/MoveGenerator.cpp \
@@ -45,5 +46,6 @@ datagenerator:
 	src/Board.cpp \
 	src/Game.cpp \
 	src/Search.cpp \
+	src/TranspositionTable.cpp \
 	src/NNUE.cpp \
 	-o build/datagenerator \

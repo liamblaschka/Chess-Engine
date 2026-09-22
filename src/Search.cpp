@@ -11,22 +11,58 @@
 #include <algorithm>
 #include <cstdint>
 #include <thread>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
-Search::Search(Game& game) : game(game), move_index(0) {
+Search::Search(Game& game) : game(game), running(true) {
     NNUE::loadModel("models/nnue.bin");
 
     nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
     nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));
 
-    max_workers = std::thread::hardware_concurrency();
+    int num_workers = std::thread::hardware_concurrency();
+    if (num_workers == 0) {
+        num_workers = 1;
+    }
+    workers.reserve(num_workers);
+    for (int i = 0; i < num_workers; i++) {
+        workers.emplace_back(&Search::workerLoop, this);
+    }
 }
 
-float Search::maximise(Game& game, NNUE& nnue, int depth, float alpha, float beta) {
-    float best_score = std::numeric_limits<float>::lowest();
-    Move best_move;
+float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue, std::mt19937& rng) {
+    float alpha_original = alpha;
 
-    std::vector<Move> moves = game.getLegalMoves();
-    orderMoves(moves, game);
+    std::uint64_t zobrist_key = game.getZobristKey();
+
+    // {
+    //     std::lock_guard<std::mutex> lock(tt_mutex);
+    
+    //     const TTEntry* tt_entry = transposition_table.probe(zobrist_key);
+    //     if (tt_entry != nullptr && tt_entry->depth >= depth) {
+    //         if ((tt_entry->flag == TTFlag::Exact)
+    //             || (tt_entry->flag == TTFlag::LowerBound && tt_entry->value >= beta)
+    //             || (tt_entry->flag == TTFlag::UpperBound && tt_entry->value <= alpha))
+    //         {
+    //             return tt_entry->value;
+    //         }
+    //     }
+    // }
+
+
+    TTEntry tt_entry;
+    if (transposition_table.probe(zobrist_key, tt_entry) && tt_entry.depth >= depth) {
+        if ((tt_entry.flag == TTFlag::Exact)
+            || (tt_entry.flag == TTFlag::LowerBound && tt_entry.value >= beta)
+            || (tt_entry.flag == TTFlag::UpperBound && tt_entry.value <= alpha))
+        {
+            return tt_entry.value;
+        }
+    }
+    
+    float value;
+
     GameState game_state = game.getGameState();
     if (game_state == GameState::Draw) {
         return DRAW_SCORE;
@@ -34,179 +70,150 @@ float Search::maximise(Game& game, NNUE& nnue, int depth, float alpha, float bet
     if (game_state == GameState::Checkmate) {
         return -CHECKMATE_SCORE - depth;
     }
-
     if (depth == 0) {
-        return evaluate(nnue, game.getTurn());
-    }
+        value = evaluate(game.getTurn(), nnue);
 
-    for (const Move& move : moves) {
-        makeMove(move, game, nnue);
-        float score = minimise(game, nnue, depth - 1, alpha, beta);
-        if (score > best_score) {
-            best_score = score;
-            best_move = move;
+        if (game.getTurn() == Colour::Black) {
+            return -value;
         }
-        undoMove(move, game, nnue);
-
-        if (best_score >= beta) {
-            break;
-        }
-        alpha = std::max(alpha, best_score);
+        return value;
     }
-
-    // previous_best_moves[game.getPositionFen()] = best_move;
-
-    return best_score;
-}
-
-float Search::minimise(Game& game, NNUE& nnue, int depth, float alpha, float beta) {
-    float best_score = std::numeric_limits<float>::max();
-    Move best_move;
 
     std::vector<Move> moves = game.getLegalMoves();
-    orderMoves(moves, game);
-    GameState game_state = game.getGameState();
-    if (game_state == GameState::Draw) {
-        return DRAW_SCORE;
-    }
-    if (game_state == GameState::Checkmate) {
-        return CHECKMATE_SCORE + depth;
-    }
+    orderMoves(moves, game, rng);
 
-    if (depth == 0) {
-        return evaluate(nnue, game.getTurn());
-    }
-
+    value = std::numeric_limits<float>::lowest();
     for (const Move& move : moves) {
-        makeMove(move, game, nnue);
-        float score = maximise(game, nnue, depth - 1, alpha, beta);
-        if (score < best_score) {
-            best_score = score;
-            best_move = move;
+        if (result_ready) {
+            return 0.0f;
         }
+
+        makeMove(move, game, nnue);
+        value = std::max(value, -negamax(depth - 1, -beta, -alpha, game, nnue, rng));
         undoMove(move, game, nnue);
 
-        if (best_score <= alpha) {
+        alpha = std::max(alpha, value);
+        if (alpha >= beta) {
             break;
         }
-        beta = std::min(beta, best_score);
     }
 
-    // previous_best_moves[game.getPositionFen()] = best_move;
+    // {
+    //     std::lock_guard<std::mutex> lock(tt_mutex);
 
-    return best_score;
+    //     if (value <= alpha_original) {
+    //         transposition_table.store(zobrist_key, TTFlag::UpperBound, value, depth);
+    //     } else if (value >= beta) {
+    //         transposition_table.store(zobrist_key, TTFlag::LowerBound, value, depth);
+    //     } else {
+    //         transposition_table.store(zobrist_key, TTFlag::Exact, value, depth);
+    //     }
+    // }
+
+
+    if (value <= alpha_original) {
+        transposition_table.store(zobrist_key, TTFlag::UpperBound, value, depth);
+    } else if (value >= beta) {
+        transposition_table.store(zobrist_key, TTFlag::LowerBound, value, depth);
+    } else {
+        transposition_table.store(zobrist_key, TTFlag::Exact, value, depth);
+    }
+
+    return value;
 }
 
-std::pair<Move, float> Search::minimax(Game game, NNUE nnue, std::vector<Move>& moves, int depth) {
-    Move best_move;
-    float best_score;
+std::pair<Move, float> Search::negamaxRoot(int depth, Game& game, NNUE& nnue, std::mt19937& rng) {
+    std::vector<Move> moves = game.getLegalMoves();
+    orderMoves(moves, game, rng);
+
     float alpha = std::numeric_limits<float>::lowest();
     float beta = std::numeric_limits<float>::max();
 
-    if (game.getTurn() == Colour::White) {
-        best_score = std::numeric_limits<float>::lowest();
+    Move best_move;
+    float best_value = std::numeric_limits<float>::lowest();
 
-        while (true) {
-            int i = move_index.fetch_add(1);
-            if (i >= moves.size()) {
-                break;
-            }
-
-            const Move& move = moves[i];
-
-            makeMove(move, game, nnue);
-
-            float score = minimise(game, nnue, depth - 1, alpha, beta);
-            if (score > best_score) {
-                best_score = score;
-                best_move = move;
-            }
-            alpha = std::max(alpha, best_score);
-
-            undoMove(move, game, nnue);
+    for (const Move& move : moves) {
+        if (result_ready) {
+            break;
         }
-    } else {
-        best_score = std::numeric_limits<float>::max();
+        
+        makeMove(move, game, nnue);
+        float value = -negamax(depth - 1, -beta, -alpha, game, nnue, rng);
+        undoMove(move, game, nnue);
 
-        while (true) {
-            int i = move_index.fetch_add(1);
-            if (i >= moves.size()) {
-                break;
-            }
-
-            const Move& move = moves[i];
-
-            makeMove(move, game, nnue);
-
-            float score = maximise(game, nnue, depth - 1, alpha, beta);
-            if (score < best_score) {
-                best_score = score;
-                best_move = move;
-            }
-            beta = std::min(beta, best_score);
-
-            undoMove(move, game, nnue);
+        if (value > best_value) {
+            best_value = value;
+            best_move = move;
         }
+
+        alpha = std::max(alpha, value);
     }
 
-    return {best_move, best_score};
+    return {best_move, best_value};
 }
 
 std::pair<Move, float> Search::run(int depth) {
-    std::vector<Move> moves = game.getLegalMoves();
-    orderMoves(moves, game);
+    {
+        std::lock_guard<std::mutex> lock(worker_mutex);
 
-    move_index.store(0);
+        root_depth = depth;
 
-    unsigned int num_workers = std::min(max_workers, static_cast<unsigned int>(moves.size()));
-    std::vector<std::thread> workers;
-    std::vector<std::pair<Move, float>> results(num_workers);
-    for (unsigned int i = 0; i < num_workers; i++) {
-        workers.emplace_back([&, i]() {
-            results[i] = minimax(game, nnue, moves, depth);
-        });
+        workers_to_start = workers.size();
+        workers_finished = 0;
     }
 
-    for (std::thread& worker : workers) {
-        worker.join();
-    }
+    result_ready = false;
 
-    Move best_move;
-    float best_score;
-    if (game.getTurn() == Colour::White) {
-        best_score = std::numeric_limits<float>::lowest();
-        for (auto& [move, score] : results) {
-            if (score > best_score) {
-                best_score = score;
-                best_move = move;
-            }
-        }
-    } else {
-        best_score = std::numeric_limits<float>::max();
-        for (auto& [move, score] : results) {
-            if (score < best_score) {
-                best_score = score;
-                best_move = move;
-            }
+    work_available.notify_all();
+
+    {
+        std::unique_lock<std::mutex> lock(worker_mutex);
+
+        while (workers_finished < workers.size()) {
+            work_finished.wait(lock);
         }
     }
-    
-    return {best_move, best_score};
+
+    return result;
 }
 
-std::vector<std::pair<Move, float>> Search::getScoredMoves(int depth) {
-    std::vector<std::pair<Move, float>> scored_moves;
-    
-    std::vector<Move> legal_moves = game.getLegalMoves();
-    for (const Move& move : legal_moves) {
-        makeMove(move);
-        float score = run(depth - 1).second;
-        undoMove(move);
+void Search::workerLoop() {
+    std::mt19937 rng(rd());
 
-        scored_moves.push_back({move, score});
+    while (running) {
+        {
+            std::unique_lock<std::mutex> lock(worker_mutex);
+
+            while (running && workers_to_start == 0) {
+                work_available.wait(lock);
+            }
+            if (!running) {
+                return;
+            }
+
+            workers_to_start--;
+        }
+
+        Game thread_game = this->game;
+        NNUE thread_nnue = this->nnue;
+        
+        std::pair<Move, float> worker_result = negamaxRoot(root_depth, thread_game, thread_nnue, rng);
+
+        if (!result_ready) {
+            {
+                std::lock_guard<std::mutex> lock(worker_mutex);
+                result = worker_result;
+            }
+            result_ready = true;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(worker_mutex);
+            workers_finished++;
+        }
+
+        work_finished.notify_one();
     }
-
-    return scored_moves;
 }
 
 void Search::getFeatureUpdates(std::vector<int>& after_move_features, std::vector<int>& before_move_features, int king_square, const Move& move, const Board& board) {
@@ -372,7 +379,31 @@ void Search::undoMove(const Move& move) {
     undoMove(move, game, nnue);
 }
 
-float Search::evaluate(const NNUE& nnue, Colour side_to_move) const {
+// void Search::makeBaseMove(const Move& move) {
+//     makeMove(move);
+    
+    // {
+    //     std::lock_guard<std::mutex> lock(worker_mutex);
+
+    //     for (auto& [thread_game, thread_nnue] : thread_states) {
+    //         makeMove(move, thread_game, thread_nnue);
+    //     }
+    // }
+// }
+
+// void Search::undoBaseMove(const Move& move) {
+//     undoMove(move);
+
+    // {
+    //     std::lock_guard<std::mutex> lock(worker_mutex);
+
+    //     for (auto& [thread_game, thread_nnue] : thread_states) {
+    //         undoMove(move, thread_game, thread_nnue);
+    //     }
+    // }
+// }
+
+float Search::evaluate(Colour side_to_move, NNUE& nnue) const {
     return nnue.forward(static_cast<int>(side_to_move));
 }
 
@@ -422,8 +453,8 @@ int Search::scoreMove(const Move& move, const Board& board) const {
     return score;
 }
 
-void Search::orderMoves(std::vector<Move>& moves, const Game& game) {
-    int sort_start = 0;
+void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng) {
+    // int sort_start = 0;
 
     // std::string position_key = game.getPositionFen();
 
@@ -440,13 +471,45 @@ void Search::orderMoves(std::vector<Move>& moves, const Game& game) {
     //         }
     //     }
     // }
+    // std::sort(moves.begin() + sort_start, moves.end(), [&](const Move& a, const Move& b) {
+    //     return (scoreMove(a, game.getBoard()) > scoreMove(b, game.getBoard()));
+    // });
 
-    std::sort(moves.begin() + sort_start, moves.end(), [&](const Move& a, const Move& b) {
-        return (scoreMove(a, game.getBoard()) > scoreMove(b, game.getBoard()));
-    });
+
+    std::shuffle(moves.begin(), moves.end(), rng);
+
+    std::stable_sort(moves.begin(), moves.end(),
+        [&](const Move& a, const Move& b) {
+            return scoreMove(a, game.getBoard()) >
+                scoreMove(b, game.getBoard());
+        }
+    );
 }
 
 void Search::reset() {
     nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
     nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));
+
+    // {
+    //     std::lock_guard<std::mutex> lock(worker_mutex);
+
+    //     for (auto& [thread_game, thread_nnue] : thread_states) {
+    //         thread_game = this->game;
+
+    //         thread_nnue.refreshWhiteAccumulator(getActiveFeatures(thread_game.getBoard(), Colour::White));
+    //         thread_nnue.refreshBlackAccumulator(getActiveFeatures(thread_game.getBoard(), Colour::Black));
+    //     }
+    // }
+}
+
+Search::~Search() {
+    running = false;
+
+    work_available.notify_all();
+
+    for (std::thread& worker : workers) {
+        if (worker.joinable()) {
+            worker.join();
+        }
+    }
 }
