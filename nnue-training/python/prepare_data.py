@@ -6,8 +6,8 @@ SEED = 33
 TRAIN_RATIO = 0.95
 VALIDATION_RATIO = 0.05
 
-NORMAL_P = 0.9
-RANDOM_P = 0.05
+NORMAL_P = 0.95
+RANDOM_P = 0.0
 TACTIC_P = 0.05
 
 DATA_DIR = Path("data")
@@ -40,18 +40,31 @@ def split_dataset(data):
     return train, validation
 
 def sample_mixture(normal, random, tactic):
-    max_size = min(len(normal) / NORMAL_P, len(random) / RANDOM_P, len(tactic) / TACTIC_P)
-    
-    normal_count = int(max_size * NORMAL_P)
-    random_count = int(max_size * RANDOM_P)
-    tactic_count = int(max_size * TACTIC_P)
-    
-    normal = normal.sample(n=normal_count, random_state=SEED)
-    random = random.sample(n=random_count, random_state=SEED)
-    tactic = tactic.sample(n=random_count, random_state=SEED)
-    
-    combined = pd.concat([normal, random, tactic], ignore_index=True)
-    
+    possible_sizes = []
+    if NORMAL_P > 0:
+        possible_sizes.append(len(normal) / NORMAL_P)
+    if RANDOM_P > 0:
+        possible_sizes.append(len(random) / RANDOM_P)
+    if TACTIC_P > 0:
+        possible_sizes.append(len(tactic) / TACTIC_P)
+    max_size = min(possible_sizes)
+
+    samples = []
+
+    if NORMAL_P > 0:
+        normal_count = int(max_size * NORMAL_P)
+        samples.append(normal.sample(n=normal_count, random_state=SEED))
+
+    if RANDOM_P > 0:
+        random_count = int(max_size * RANDOM_P)
+        samples.append(random.sample(n=random_count, random_state=SEED))
+
+    if TACTIC_P > 0:
+        tactic_count = int(max_size * TACTIC_P)
+        samples.append(tactic.sample(n=tactic_count, random_state=SEED))
+
+    combined = pd.concat(samples, ignore_index=True)
+
     return combined.sample(frac=1, random_state=SEED).reset_index(drop=True)
 
 
