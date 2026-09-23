@@ -3,31 +3,38 @@
 #include "MoveGenerator.h"
 #include "Board.h"
 #include "CastleRights.h"
+#include "Zobrist.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <cctype>
 #include <cstdint>
 
 Game::Game() {
-    current_legal_moves = move_generator.generateLegalMoves(board);
+    move_generator.generateLegalMoves(board);
     trackPosition();
 }
 
 void Game::trackPosition() {
-    current_position = getPositionKey();
-    positions[current_position]++;
+    current_repetition_key = board.getZobristKey();
+
+    int en_passant_square = board.getEnPassantSquare();
+    if (en_passant_square != -1 && !move_generator.isEnPassantPossible()) {
+        current_repetition_key ^= Zobrist::en_passant[en_passant_square % 8];
+    }
+
+    position_counts[current_repetition_key]++;
 }
 
 GameState Game::getGameState() const {
     Colour turn = board.getTurn();
 
-    auto position = positions.find(getPositionKey());
-    if (position != positions.end() && position->second >= 3) {
+    auto it = position_counts.find(current_repetition_key);
+    if (it != position_counts.end() && it->second >= 3) {
         return GameState::Draw;
     }
 
     bool in_check = board.isKingInCheck(turn);
-    if (current_legal_moves.empty()) {
+    if (move_generator.getLegalMoves().empty()) {
         if (in_check) {
             return GameState::Checkmate;
         }
@@ -49,13 +56,10 @@ GameState Game::getGameState() const {
     return GameState::Playing;
 }
 
-std::vector<Move> Game::getLegalMoves() const {
-    // current_legal_moves = move_generator.generateLegalMoves(board);
-    return current_legal_moves;
-}
+const std::vector<Move>& Game::getLegalMoves() const { return move_generator.getLegalMoves(); }
 
 void Game::makeMove(const Move& move) {
-    history.push_back({current_position, halfmove_clock, fullmove_number});
+    history.push_back({current_repetition_key, halfmove_clock, fullmove_number});
 
     const Piece& moving_piece = board.getPiece(move.from);
     const Piece& captured_piece = board.getPiece(move.to);
@@ -73,17 +77,17 @@ void Game::makeMove(const Move& move) {
         fullmove_number++;
     }
 
-    current_legal_moves = move_generator.generateLegalMoves(board);
+    move_generator.generateLegalMoves(board);
     trackPosition();
 }
 
 void Game::undoMove() {
-    auto it = positions.find(current_position);
-    if (it != positions.end()) {
+    auto it = position_counts.find(current_repetition_key);
+    if (it != position_counts.end()) {
         it->second--;
 
         if (it->second == 0) {
-            positions.erase(it);
+            position_counts.erase(it);
         }
     }
 
@@ -91,11 +95,11 @@ void Game::undoMove() {
 
     halfmove_clock = history.back().halfmove_clock;
     fullmove_number = history.back().fullmove_number;
-    current_position = history.back().position_key;
+    current_repetition_key = history.back().position_key;
 
     history.pop_back();
 
-    current_legal_moves = move_generator.generateLegalMoves(board);
+    move_generator.generateLegalMoves(board);
 }
 
 Colour Game::getTurn() const { return board.getTurn(); }
@@ -273,18 +277,16 @@ void Game::setPosition(const std::string& fen) {
     halfmove_clock = new_halfmove_clock;
     fullmove_number = new_fullmove_number;
 
-    positions.clear();
+    position_counts.clear();
     history.clear();
 
-    current_legal_moves = move_generator.generateLegalMoves(board);
+    move_generator.generateLegalMoves(board);
 
-    current_position = getPositionKey();
-
-    positions[current_position] = 1;
+    trackPosition();
 }
 
-std::string Game::getPositionKey() const {
-    std::string key;
+std::string Game::getPositionFen() const {
+    std::string fen;
 
     // Board position
     for (int rank = 7; rank >= 0; rank--) {
@@ -299,27 +301,27 @@ std::string Game::getPositionKey() const {
             }
 
             if (empty_squares > 0) {
-                key += std::to_string(empty_squares);
+                fen += std::to_string(empty_squares);
                 empty_squares = 0;
             }
 
-            key += piece.getSymbol();
+            fen += piece.getSymbol();
         }
 
         if (empty_squares > 0) {
-            key += std::to_string(empty_squares);
+            fen += std::to_string(empty_squares);
         }
 
         if (rank > 0) {
-            key += '/';
+            fen += '/';
         }
     }
 
     // Turn
     if (board.getTurn() == Colour::White) {
-        key += " w ";
+        fen += " w ";
     } else {
-        key += " b ";
+        fen += " b ";
     }
 
     // Castling rights
@@ -327,60 +329,35 @@ std::string Game::getPositionKey() const {
     CastleRights white_castle_rights = board.getCastleRights(Colour::White);
     CastleRights black_castle_rights = board.getCastleRights(Colour::Black);
     if (white_castle_rights.king_side) {
-        key += 'K';
+        fen += 'K';
         has_castling_rights = true;
     }
     if (white_castle_rights.queen_side) {
-        key += 'Q';
+        fen += 'Q';
         has_castling_rights = true;
     }
     if (black_castle_rights.king_side) {
-        key += 'k';
+        fen += 'k';
         has_castling_rights = true;
     }
     if (black_castle_rights.queen_side) {
-        key += 'q';
+        fen += 'q';
         has_castling_rights = true;
     }
     if (!has_castling_rights) {
-        key += '-';
+        fen += '-';
     }
 
     // En passant
-    key += ' ';
-    bool en_passant_available = false;
-    for (const Move& move : current_legal_moves) {
-        if (move.type == MoveType::EnPassant) {
-            int target_rank = move.to / 8;
-            int target_file = move.to % 8;
+    int en_passant_square = board.getEnPassantSquare();
+    if (en_passant_square != -1) {
+        int target_rank = en_passant_square / 8;
+        int target_file = en_passant_square % 8;
 
-            key += static_cast<char>('a' + target_file);
-            key += static_cast<char>('1' + target_rank);
-
-            en_passant_available = true;
-            break;
-        }
-    }
-    if (!en_passant_available) {
-        key += '-';
-    }
-
-    return key;
-}
-
-std::string Game::getPositionFen() const {
-    std::string fen = getPositionKey();
-    if (fen.back() == '-') {
-        int en_passant_square = board.getEnPassantSquare();
-        if (en_passant_square != -1) {
-            fen.pop_back();
-
-            int target_rank = en_passant_square / 8;
-            int target_file = en_passant_square % 8;
-
-            fen += static_cast<char>('a' + target_file);
-            fen += static_cast<char>('1' + target_rank);
-        }
+        fen += static_cast<char>('a' + target_file);
+        fen += static_cast<char>('1' + target_rank);
+    } else {
+        fen += '-';
     }
 
     fen += " " + std::to_string(halfmove_clock);

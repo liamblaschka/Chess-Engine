@@ -60,8 +60,10 @@ private:
     int getFeature(int square, const Piece& piece, int king_square) const;
     std::vector<int> getActiveFeatures(const Board& board, Colour colour) const;
 
-    int scoreMove(const Move& move, const Board& board) const;
+    int scoreMove(const Move& move, const Board& board, const Move* tt_move) const;
     void orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng);
+
+    int pieceValue(PieceType type) const;
 
 public:
     Search(Game& game);

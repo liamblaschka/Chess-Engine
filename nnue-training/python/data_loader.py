@@ -31,11 +31,14 @@ _lib = _load_shared_library()
 
 
 # Dataset
-_lib.Dataset_new.argtypes = [ctypes.c_char_p, ctypes.c_int]
+_lib.Dataset_new.argtypes = [ctypes.c_char_p]
 _lib.Dataset_new.restype = ctypes.c_void_p
 
 _lib.Dataset_delete.argtypes = [ctypes.c_void_p]
 _lib.Dataset_delete.restype = None
+
+_lib.Dataset_getDataSize.argtypes = [ctypes.c_void_p]
+_lib.Dataset_getDataSize.restype = ctypes.c_int
 
 # SparseFeatures
 _lib.SparseFeatures_getWhiteIndices.argtypes = [ctypes.c_void_p]
@@ -84,10 +87,10 @@ _lib.DataLoader_resetEpoch.restype = None
 
 
 class Dataset:
-    def __init__(self, file_path: str, data_size: int):
+    def __init__(self, file_path: str):
         self._ptr = None
-        self._ptr = _lib.Dataset_new(file_path.encode('utf-8'), data_size)
-        self.data_size = data_size
+        self._ptr = _lib.Dataset_new(file_path.encode('utf-8'))
+        self.size = _lib.Dataset_getDataSize(self._ptr)
 
     def __del__(self):
         if self._ptr:
@@ -146,51 +149,13 @@ class SparseBatch:
         king_factor_ptr = _lib.SparseBatch_getKingFeatures(self._ptr)
         self.king_factor = SparseFeatures(king_factor_ptr, self.size, KING_FACTOR_SIZE)
 
-    # @property
-    # def tensors(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    #     side_to_move_ptr = _lib.SparseBatch_getSideToMove(self._ptr)
-    #     evaluation_ptr = _lib.SparseBatch_getEvaluation(self._ptr)
-    #     white_features_ptr = _lib.SparseBatch_getWhiteFeatures(self._ptr)
-    #     black_features_ptr = _lib.SparseBatch_getBlackFeatures(self._ptr)
-        
-    #     num_active_white_features = _lib.SparseBatch_getNumActiveWhiteFeatures(self._ptr)
-    #     num_active_black_features = _lib.SparseBatch_getNumActiveBlackFeatures(self._ptr)
-        
-        
-    #     side_to_move = torch.from_numpy(
-    #         np.ctypeslib.as_array(side_to_move_ptr, shape=(self.size, 1))
-    #     )
-    #     evaluation = torch.from_numpy(
-    #         np.ctypeslib.as_array(evaluation_ptr, shape=(self.size, 1))
-    #     )
-    
-    #     white_features_indices = torch.transpose(torch.from_numpy(
-    #         np.ctypeslib.as_array(white_features_ptr, shape=(num_active_white_features, 2))
-    #     ), 0, 1).long()
-    #     black_features_indices = torch.transpose(torch.from_numpy(
-    #         np.ctypeslib.as_array(black_features_ptr, shape=(num_active_black_features, 2))
-    #     ), 0, 1).long()
-        
-    #     white_features_values = torch.ones(num_active_white_features)
-    #     black_features_values = torch.ones(num_active_black_features)
-        
-    #     white_features = torch.sparse_coo_tensor(
-    #         white_features_indices, white_features_values, (self.size, NUM_FEATURES), check_invariants=False, is_coalesced=True
-
-    #     )
-    #     black_features = torch.sparse_coo_tensor(
-    #         black_features_indices, black_features_values, (self.size, NUM_FEATURES), check_invariants=False, is_coalesced=True
-    #     )
-        
-    #     return white_features, black_features, side_to_move, evaluation
-
 class DataLoader:
     def __init__(self, dataset: Dataset, batch_size: int, num_workers: int, fill_virtual_features: bool = True):
         self._ptr = None
         self._ptr = _lib.DataLoader_new(dataset._ptr, batch_size, num_workers, fill_virtual_features)
         self._dataset = dataset
         self.batch_size = batch_size
-        self.num_batches = dataset.data_size // self.batch_size
+        self.num_batches = dataset.size // self.batch_size
         self._fill_virtual_features = fill_virtual_features
         
     def reset_epoch(self):

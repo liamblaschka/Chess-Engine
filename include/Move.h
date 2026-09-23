@@ -24,6 +24,13 @@ struct Move {
 
     Move(int from_rank, int from_file, int to_rank, int to_file, MoveType type = MoveType::Normal, Piece promotion_piece = Piece())
         : from(from_rank * 8 + from_file), to(to_rank * 8 + to_file), type(type), promotion_piece(promotion_piece) {}
+
+    bool operator==(const Move& other) const {
+        return (from == other.from)
+            && (to == other.to)
+            && (type == other.type)
+            && (promotion_piece == other.promotion_piece);
+    }
 };
 
 struct MoveState {

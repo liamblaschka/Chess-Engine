@@ -62,8 +62,6 @@ float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue
             return tt_entry.value;
         }
     }
-    
-    float value;
 
     GameState game_state = game.getGameState();
     if (game_state == GameState::Draw) {
@@ -73,7 +71,7 @@ float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue
         return -CHECKMATE_SCORE - depth;
     }
     if (depth == 0) {
-        value = evaluate(game.getTurn(), nnue);
+        float value = evaluate(game.getTurn(), nnue);
 
         if (game.getTurn() == Colour::Black) {
             return -value;
@@ -81,18 +79,26 @@ float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue
         return value;
     }
 
+    Move best_move;
+    float best_value = std::numeric_limits<float>::lowest();
+
     std::vector<Move> moves = game.getLegalMoves();
     orderMoves(moves, game, rng);
 
-    value = std::numeric_limits<float>::lowest();
+    best_value = std::numeric_limits<float>::lowest();
     for (const Move& move : moves) {
         if (result_ready) {
             return 0.0f;
         }
 
         makeMove(move, game, nnue);
-        value = std::max(value, -negamax(depth - 1, -beta, -alpha, game, nnue, rng));
+        float value = -negamax(depth - 1, -beta, -alpha, game, nnue, rng);
         undoMove(move, game, nnue);
+
+        if (value > best_value) {
+            best_value = value;
+            best_move = move;
+        }
 
         alpha = std::max(alpha, value);
         if (alpha >= beta) {
@@ -113,15 +119,15 @@ float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue
     // }
 
 
-    if (value <= alpha_original) {
-        transposition_table.store(zobrist_key, TTFlag::UpperBound, value, depth);
-    } else if (value >= beta) {
-        transposition_table.store(zobrist_key, TTFlag::LowerBound, value, depth);
+    if (best_value <= alpha_original) {
+        transposition_table.store(zobrist_key, TTFlag::UpperBound, best_value, depth, best_move);
+    } else if (best_value >= beta) {
+        transposition_table.store(zobrist_key, TTFlag::LowerBound, best_value, depth, best_move);
     } else {
-        transposition_table.store(zobrist_key, TTFlag::Exact, value, depth);
+        transposition_table.store(zobrist_key, TTFlag::Exact, best_value, depth, best_move);
     }
 
-    return value;
+    return best_value;
 }
 
 std::pair<Move, float> Search::negamaxRoot(int depth, Game& game, NNUE& nnue, std::mt19937& rng) {
@@ -448,7 +454,11 @@ std::vector<int> Search::getActiveFeatures(const Board& board, Colour colour) co
     return active_features;
 }
 
-int Search::scoreMove(const Move& move, const Board& board) const {
+int Search::scoreMove(const Move& move, const Board& board, const Move* tt_move) const {
+    if (tt_move != nullptr && move == *tt_move) {
+        return 100000;
+    }
+
     int score = 0;
     if (move.type == MoveType::Promotion) {
         score += 3000;
@@ -457,7 +467,10 @@ int Search::scoreMove(const Move& move, const Board& board) const {
         score += 100;
     }
     if (board.getPiece(move.to).type != PieceType::None) {
-        score += 1000;
+        const Piece& attacker = board.getPiece(move.from);
+        const Piece& victim = board.getPiece(move.to);
+
+        score += 1000 + (pieceValue(victim.type) * 10 - pieceValue(attacker.type));
     }
 
     return score;
@@ -486,14 +499,72 @@ void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng)
     // });
 
 
+    TTEntry tt_entry;
+    const Move* tt_move = nullptr;
+    if (transposition_table.probe(game.getZobristKey(), tt_entry)) {
+        tt_move = &tt_entry.best_move;
+    }
+
     std::shuffle(moves.begin(), moves.end(), rng);
 
     std::stable_sort(moves.begin(), moves.end(),
         [&](const Move& a, const Move& b) {
-            return scoreMove(a, game.getBoard()) >
-                scoreMove(b, game.getBoard());
+            return scoreMove(a, game.getBoard(), tt_move) >
+                scoreMove(b, game.getBoard(), tt_move);
         }
     );
+}
+
+// void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng) {
+//     struct ScoredMove {
+//         Move move;
+//         int score;
+//     };
+
+//     TTEntry tt_entry;
+//     const Move* tt_move = nullptr;
+//     if (transposition_table.probe(game.getZobristKey(), tt_entry)) {
+//         tt_move = &tt_entry.best_move;
+//     }
+
+//     std::vector<ScoredMove> scored_moves;
+//     scored_moves.reserve(moves.size());
+
+//     for (const Move& move : moves) {
+//         scored_moves.push_back({move, scoreMove(move, game.getBoard(), tt_move)});
+//     }
+
+//     std::shuffle(scored_moves.begin(), scored_moves.end(), rng);
+
+//     std::stable_sort(scored_moves.begin(), scored_moves.end(),
+//         [](const ScoredMove& a, const ScoredMove& b) {
+//             return a.score > b.score;
+//         }
+//     );
+
+//     for (std::size_t i = 0; i < moves.size(); ++i) {
+//         moves[i] = scored_moves[i].move;
+//     }
+// }
+
+int Search::pieceValue(PieceType type) const {
+    switch (type) {
+        case PieceType::Pawn:
+            return 1;
+        case PieceType::Knight:
+            return 3;
+        case PieceType::Bishop:
+            return 3;
+        case PieceType::Rook:
+            return 5;
+        case PieceType::Queen:
+            return 9;
+        case PieceType::King:
+            return 10;
+        case PieceType::None:
+            return 0;
+    }
+    return 0;
 }
 
 void Search::reset() {

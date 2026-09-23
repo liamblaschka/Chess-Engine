@@ -54,6 +54,11 @@ struct Piece {
         }
         return symbol;
     }
+
+    bool operator==(const Piece& other) const {
+        return (type == other.type)
+            && (colour == other.colour);
+    }
 };
 
 Colour oppositeColour(Colour colour);

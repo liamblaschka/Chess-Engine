@@ -407,7 +407,7 @@ int Board::getKingSquare(Colour colour) const {
 bool Board::isKingInCheck(Colour colour) const {
     int king_square = getKingSquare(colour);
 
-    return isSquareAttacked(king_square / 8, king_square % 8, oppositeColour(colour));
+    return isSquareAttacked(king_square, oppositeColour(colour));
 }
 
 // Insufficient material rules as per: https://support.chess.com/en/articles/8705277-what-does-insufficient-mating-material-mean

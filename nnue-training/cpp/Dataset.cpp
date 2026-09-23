@@ -11,24 +11,22 @@
 #include <algorithm>
 #include <atomic>
 
-Dataset::Dataset(const std::string& file_path, int data_size) : data_size(data_size), rng(33), next_batch_start(0) {
-    shuffled_indices.resize(data_size);
+Dataset::Dataset(const std::string& file_path) : rng(33), next_batch_start(0) {
+    readCSV(file_path);
+
+    shuffled_indices.resize(data.size());
     std::iota(shuffled_indices.begin(), shuffled_indices.end(), 0);
     std::shuffle(shuffled_indices.begin(), shuffled_indices.end(), rng);
-
-    readCSV(file_path, data_size);
 }
 
-void Dataset::readCSV(const std::string& file_path, int data_size) {
+void Dataset::readCSV(const std::string& file_path) {
     std::fstream fin;
     fin.open(file_path, std::ios::in);
 
     std::string line;
     std::getline(fin, line);
     
-    for (int i = 0; i < data_size; i++) {
-        std::getline(fin, line);
-
+    while(std::getline(fin, line)) {
         std::stringstream ss(line);
         std::string fen;
         std::string evaluation_str;
@@ -124,7 +122,7 @@ const TrainingEntry& Dataset::getEntry(int index) {
     return data[shuffled_indices[index]];
 }
 
-int Dataset::getDataSize() const { return data_size; }
+int Dataset::getDataSize() const { return data.size(); }
 
 void Dataset::resetEpoch() {
     next_batch_start = 0;
@@ -133,11 +131,15 @@ void Dataset::resetEpoch() {
 
 
 extern "C" {
-    Dataset* Dataset_new(const char* file_path, int data_size) {
-        return new Dataset(file_path, data_size);
+    Dataset* Dataset_new(const char* file_path) {
+        return new Dataset(file_path);
     }
 
     void Dataset_delete(Dataset* dataset) {
         delete dataset;
+    }
+
+    int Dataset_getDataSize(Dataset* dataset) {
+        return dataset->getDataSize();
     }
 }
