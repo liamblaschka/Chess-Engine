@@ -12,7 +12,7 @@ private:
     // static constexpr int EVAL_DEPTH = 4;
 
     static constexpr int PLAY_DEPTH = 3;
-    static constexpr int EVAL_DEPTH = 4;
+    static constexpr int EVAL_DEPTH = 5;
     static constexpr int NUM_GAMES = 1'000;
     static constexpr double SAMPLE_PROBABILITY = 0.1;
     static constexpr int RANDOM_PLIES = 8;

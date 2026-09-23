@@ -30,7 +30,7 @@ void DataGenerator::playGames() {
     auto progress_start = std::chrono::steady_clock::now();
 
     std::size_t num_sampled_positions = 0;
-    for (int i = 0; i < NUM_GAMES; i++) {
+    for (int i = 0; i < 10; i++) {
         game = Game();
         search.reset();
 
@@ -120,7 +120,7 @@ void DataGenerator::playGames() {
         }
 
 
-        if ((i + 1) % 100 == 0) {
+        if ((i + 1) % 5 == 0) {
             auto now = std::chrono::steady_clock::now();
             double seconds = std::chrono::duration<double>(now - progress_start).count();
 

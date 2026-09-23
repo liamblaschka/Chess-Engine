@@ -15,7 +15,9 @@
 #include <mutex>
 #include <condition_variable>
 
-Search::Search(Game& game) : game(game), running(true) {
+// #include <iostream>
+
+Search::Search(Game& game) : game(game), running(true), result_ready(false), workers_to_start(0), workers_finished(0) {
     NNUE::loadModel("models/nnue.bin");
 
     nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
@@ -164,6 +166,8 @@ std::pair<Move, float> Search::run(int depth) {
 
     result_ready = false;
 
+    // std::cout << "RUN: notifying workers\n"; //test
+
     work_available.notify_all();
 
     {
@@ -173,6 +177,8 @@ std::pair<Move, float> Search::run(int depth) {
             work_finished.wait(lock);
         }
     }
+
+    // std::cout << "RUN: workers finished\n"; //test
 
     return result;
 }
@@ -194,10 +200,14 @@ void Search::workerLoop() {
             workers_to_start--;
         }
 
+        // std::cout << "WORKER: starting search\n"; //test
+
         Game thread_game = this->game;
         NNUE thread_nnue = this->nnue;
         
         std::pair<Move, float> worker_result = negamaxRoot(root_depth, thread_game, thread_nnue, rng);
+
+        // std::cout << "WORKER: search finished\n"; //test
 
         if (!result_ready) {
             {
