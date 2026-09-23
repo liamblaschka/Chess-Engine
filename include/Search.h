@@ -68,12 +68,7 @@ private:
 public:
     Search(Game& game);
 
-    std::pair<Move, float> run(int depth = 2);
-
-    // std::vector<std::pair<Move, float>> getScoredMoves(int depth);
-
-    // void makeBaseMove(const Move& move);
-    // void undoBaseMove(const Move& move);
+    std::pair<Move, float> run(int depth = 7);
 
     void makeMove(const Move& move);
     void undoMove(const Move& move);
