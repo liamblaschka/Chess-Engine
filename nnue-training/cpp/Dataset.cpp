@@ -106,9 +106,9 @@ void Dataset::readCSV(const std::string& file_path) {
 float Dataset::parseEvaluation(const std::string& evaluation) const {
     if (evaluation[0] == '#') {
         if (evaluation[1] == '-') {
-            return -1000;
+            return -3000;
         } else {
-            return 1000;
+            return 3000;
         }
     }
     return std::stof(evaluation);
