@@ -18,7 +18,9 @@ BATCH_SIZE = 2048
 DATALOADER_WORKERS = 12
 
 LEARNING_RATE = 0.002
-EPOCHS = 30
+EPOCHS = 60
+
+EARLY_STOPPING_PATIENCE = 7
 
 
 def move_batch_to_device(batch, device, fill_virtual_features):
@@ -92,6 +94,8 @@ def train(model: NNUE, train_loader: DataLoader, validation_loader: DataLoader, 
     )
 
     best_validation_loss = float("inf")
+    
+    epochs_without_improvement = 0
 
     latest_path = os.path.join(models_dir, "latest.pth")
     best_path = os.path.join(models_dir, "best.pth")
@@ -161,8 +165,15 @@ def train(model: NNUE, train_loader: DataLoader, validation_loader: DataLoader, 
             if validation_loss < best_validation_loss:
                 best_validation_loss = validation_loss
                 torch.save(checkpoint, best_path)
-
+                epochs_without_improvement = 0
+                
                 print(f"New best model (validation_loss={validation_loss:.6f})")
+            else:
+                epochs_without_improvement += 1
+                
+            if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+                print(f"\n Early stop. No improvement for {epochs_without_improvement} epochs.")
+                break
 
     print(f"Best validation loss: {best_validation_loss:.6f}")
 
