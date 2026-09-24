@@ -6,9 +6,9 @@ SEED = 33
 TRAIN_RATIO = 0.95
 VALIDATION_RATIO = 0.05
 
-NORMAL_P = 0.8
-RANDOM_P = 0.1
-TACTIC_P = 0.1
+NORMAL_P = 0.95
+RANDOM_P = 0.025
+TACTIC_P = 0.025
 
 DATA_DIR = Path("data")
 
@@ -50,18 +50,19 @@ def sample_mixture(normal, random, tactic):
     max_size = min(possible_sizes)
 
     samples = []
+    
+    normal_count, random_count, tactic_count = int(max_size * NORMAL_P), int(max_size * RANDOM_P), int(max_size * TACTIC_P)
 
-    if NORMAL_P > 0:
-        normal_count = int(max_size * NORMAL_P)
+    if normal_count > 0:
         samples.append(normal.sample(n=normal_count, random_state=SEED))
 
-    if RANDOM_P > 0:
-        random_count = int(max_size * RANDOM_P)
+    if random_count > 0:
         samples.append(random.sample(n=random_count, random_state=SEED))
 
-    if TACTIC_P > 0:
-        tactic_count = int(max_size * TACTIC_P)
+    if tactic_count > 0:
         samples.append(tactic.sample(n=tactic_count, random_state=SEED))
+        
+    print(f"Normal: {normal_count:,}, Random: {random_count:,}, Tactic: {tactic_count:,}")
 
     combined = pd.concat(samples, ignore_index=True)
 
@@ -70,31 +71,26 @@ def sample_mixture(normal, random, tactic):
 
 def main():
     print("Loading datasets...")
-    
+
     normal = load_dataset(NORMAL_PATH)
     random = load_dataset(RANDOM_PATH)
     tactic = load_dataset(TACTIC_PATH)
-    
+
     print(f"Normal: {len(normal):,}")
     print(f"Random: {len(random):,}")
     print(f"Tactic: {len(tactic):,}")
-    
-    normal_train, normal_validation = split_dataset(normal)
-    random_train, random_validation = split_dataset(random)
-    tactic_train, tactic_validation = split_dataset(tactic)
-    
+
+    normal_train, validation = split_dataset(normal)
+
     print("Creating training mixture...")
-    train = sample_mixture(normal_train, random_train, tactic_train)
-    
-    print("Creating validation mixture...")
-    validation = sample_mixture(normal_validation, random_validation, tactic_validation)
-    
+    train = sample_mixture(normal_train, random, tactic)
+
     print(f"Training positions: {len(train):,}")
     print(f"Validation positions: {len(validation):,}")
-    
+
     train.to_csv(TRAIN_PATH, index=False)
     validation.to_csv(VALIDATION_PATH, index=False)
-    
+
     print(f"Saved {TRAIN_PATH}")
     print(f"Saved {VALIDATION_PATH}")
     
