@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <atomic>
 
-Dataset::Dataset(const std::string& file_path) : rng(33), next_batch_start(0) {
+Dataset::Dataset(const std::string& file_path, bool use_data_augmentation) : rng(33), next_batch_start(0), use_data_augmentation(use_data_augmentation) {
     readCSV(file_path);
 
     shuffled_indices.resize(data.size());
@@ -34,6 +34,11 @@ void Dataset::readCSV(const std::string& file_path) {
         std::getline(ss, evaluation_str);
 
         float evaluation = parseEvaluation(evaluation_str);
+
+        if (use_data_augmentation && prob_distribution(rng) < 0.5) {
+            flipFenPerspective(fen);
+            evaluation = -evaluation;
+        }
 
         std::vector<Piece> pieces;
         std::uint8_t white_king_square = 0;
@@ -103,6 +108,63 @@ void Dataset::readCSV(const std::string& file_path) {
     }
 }
 
+void Dataset::flipFenPerspective(std::string& fen) const {
+    std::stringstream fen_ss(fen);
+
+    std::string board;
+    std::string turn;
+    std::string castling;
+    std::string en_passant;
+    int halfmove;
+    int fullmove;
+
+    fen_ss >> board >> turn >> castling >> en_passant >> halfmove >> fullmove;
+
+    std::stringstream board_ss(board);
+    std::vector<std::string> ranks(8);
+
+    // Reverse ranks
+    for (int i = 7; i >= 0; i--) {
+        std::getline(board_ss, ranks[i], '/');
+
+        for (char& c : ranks[i]) {
+            if (std::isupper(static_cast<unsigned char>(c))) {
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            } else if (std::islower(static_cast<unsigned char>(c))) {
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            }
+        }
+    }
+
+    // Swap side to move
+    if (turn == "w") {
+        turn = "b";
+    } else {
+        turn = "w";
+    }
+
+    // Swap castling colours
+    for (char& c : castling) {
+        if (std::isupper(static_cast<unsigned char>(c))) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        } else if (std::islower(static_cast<unsigned char>(c))) {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        }
+    }
+
+    // Flip en passant rank
+    if (en_passant != "-") {
+        en_passant[1] = static_cast<char>('9' - en_passant[1]);
+    }
+
+    // Rebuild FEN
+    board = ranks[0];
+    for (int i = 1; i < 8; i++) {
+        board += "/" + ranks[i];
+    }
+    fen = board + " " + turn + " " + castling + " " + en_passant + " " + std::to_string(halfmove) + " " + std::to_string(fullmove);
+}
+
 float Dataset::parseEvaluation(const std::string& evaluation) const {
     if (evaluation[0] == '#') {
         if (evaluation[1] == '-') {
@@ -131,8 +193,8 @@ void Dataset::resetEpoch() {
 
 
 extern "C" {
-    Dataset* Dataset_new(const char* file_path) {
-        return new Dataset(file_path);
+    Dataset* Dataset_new(const char* file_path, bool use_data_augmentation) {
+        return new Dataset(file_path, use_data_augmentation);
     }
 
     void Dataset_delete(Dataset* dataset) {

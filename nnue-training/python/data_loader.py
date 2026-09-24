@@ -31,7 +31,7 @@ _lib = _load_shared_library()
 
 
 # Dataset
-_lib.Dataset_new.argtypes = [ctypes.c_char_p]
+_lib.Dataset_new.argtypes = [ctypes.c_char_p, ctypes.c_bool]
 _lib.Dataset_new.restype = ctypes.c_void_p
 
 _lib.Dataset_delete.argtypes = [ctypes.c_void_p]
@@ -87,9 +87,9 @@ _lib.DataLoader_resetEpoch.restype = None
 
 
 class Dataset:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, use_data_augmentation: bool = True):
         self._ptr = None
-        self._ptr = _lib.Dataset_new(file_path.encode('utf-8'))
+        self._ptr = _lib.Dataset_new(file_path.encode('utf-8'), use_data_augmentation)
         self.size = _lib.Dataset_getDataSize(self._ptr)
 
     def __del__(self):

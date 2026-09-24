@@ -229,7 +229,7 @@ def main():
     train_dataset = Dataset(train_path)
     print(f"Training data size: {train_dataset.size:,}")
     
-    validation_dataset = Dataset(validation_path)
+    validation_dataset = Dataset(validation_path, use_data_augmentation=False)
     print(f"Validation data size: {validation_dataset.size:,}")
 
     train_loader = DataLoader(train_dataset, BATCH_SIZE, DATALOADER_WORKERS)
