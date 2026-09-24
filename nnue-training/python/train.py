@@ -227,8 +227,10 @@ def main():
     os.makedirs(models_dir, exist_ok=True)
 
     train_dataset = Dataset(train_path)
-    print(train_dataset.size)
+    print(f"Training data size: {train_dataset.size:,}")
+    
     validation_dataset = Dataset(validation_path)
+    print(f"Training data size: {train_dataset.size:,}")
     print(validation_dataset.size)
 
     train_loader = DataLoader(train_dataset, BATCH_SIZE, DATALOADER_WORKERS)
