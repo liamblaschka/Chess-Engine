@@ -34,25 +34,19 @@ Search::Search(Game& game) : game(game), running(true), result_ready(false), wor
 }
 
 float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue, std::mt19937& rng) {
+    // Terminal state
+    GameState game_state = game.getGameState();
+    if (game_state == GameState::Draw) {
+        return DRAW_SCORE;
+    }
+    if (game_state == GameState::Checkmate) {
+        return -CHECKMATE_SCORE - depth;
+    }
+
     float alpha_original = alpha;
 
+    // Probe transposition table
     std::uint64_t zobrist_key = game.getZobristKey();
-
-    // {
-    //     std::lock_guard<std::mutex> lock(tt_mutex);
-    
-    //     const TTEntry* tt_entry = transposition_table.probe(zobrist_key);
-    //     if (tt_entry != nullptr && tt_entry->depth >= depth) {
-    //         if ((tt_entry->flag == TTFlag::Exact)
-    //             || (tt_entry->flag == TTFlag::LowerBound && tt_entry->value >= beta)
-    //             || (tt_entry->flag == TTFlag::UpperBound && tt_entry->value <= alpha))
-    //         {
-    //             return tt_entry->value;
-    //         }
-    //     }
-    // }
-
-
     TTEntry tt_entry;
     if (transposition_table.probe(zobrist_key, tt_entry) && tt_entry.depth >= depth) {
         if ((tt_entry.flag == TTFlag::Exact)
@@ -63,13 +57,7 @@ float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue
         }
     }
 
-    GameState game_state = game.getGameState();
-    if (game_state == GameState::Draw) {
-        return DRAW_SCORE;
-    }
-    if (game_state == GameState::Checkmate) {
-        return -CHECKMATE_SCORE - depth;
-    }
+    // Reached max depth
     if (depth == 0) {
         float value = evaluate(game.getTurn(), nnue);
 
@@ -106,19 +94,7 @@ float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue
         }
     }
 
-    // {
-    //     std::lock_guard<std::mutex> lock(tt_mutex);
-
-    //     if (value <= alpha_original) {
-    //         transposition_table.store(zobrist_key, TTFlag::UpperBound, value, depth);
-    //     } else if (value >= beta) {
-    //         transposition_table.store(zobrist_key, TTFlag::LowerBound, value, depth);
-    //     } else {
-    //         transposition_table.store(zobrist_key, TTFlag::Exact, value, depth);
-    //     }
-    // }
-
-
+    
     if (best_value <= alpha_original) {
         transposition_table.store(zobrist_key, TTFlag::UpperBound, best_value, depth, best_move);
     } else if (best_value >= beta) {
