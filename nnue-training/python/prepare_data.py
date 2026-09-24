@@ -6,9 +6,9 @@ SEED = 33
 TRAIN_RATIO = 0.95
 VALIDATION_RATIO = 0.05
 
-NORMAL_P = 0.95
-RANDOM_P = 0.025
-TACTIC_P = 0.025
+NORMAL_P = 0.925
+RANDOM_P = 0.075
+TACTIC_P = 0.0
 
 DATA_DIR = Path("data")
 
@@ -24,7 +24,7 @@ VALIDATION_PATH = DATA_DIR / "validation.csv"
 def load_dataset(path):
     data = pd.read_csv(path)
     
-    data = data[["FEN", "Evaluation"]] # Using only FEN and Evaluation, excluding best move from tactics_evals.csv
+    data = data[["FEN", "Evaluation"]]
     data = data.dropna()
     
     return data
@@ -80,10 +80,11 @@ def main():
     print(f"Random: {len(random):,}")
     print(f"Tactic: {len(tactic):,}")
 
-    normal_train, validation = split_dataset(normal)
-
-    print("Creating training mixture...")
-    train = sample_mixture(normal_train, random, tactic)
+    print("Creating mixture...")
+    data = sample_mixture(normal, random, tactic)
+    
+    print("Splitting training and validation data...")
+    train, validation = split_dataset(data)
 
     print(f"Training positions: {len(train):,}")
     print(f"Validation positions: {len(validation):,}")
