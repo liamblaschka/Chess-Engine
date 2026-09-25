@@ -21,5 +21,6 @@ private:
     int squareFromUCI(const std::string& square) const;
     std::string squareToUCI(int square) const;
 public:
+    UCI();
     void run();
 };

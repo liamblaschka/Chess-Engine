@@ -6,19 +6,36 @@
 #include "NNUE.h"
 #include <array>
 #include <vector>
+#include <utility>
 #include <limits>
 #include <algorithm>
-#include <utility>
+#include <cstdint>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
-Search::Search() : nnue("models/nnue.bin") {}
+// #include <iostream>
 
-float Search::maximise(Game& game, int depth, float alpha, float beta) {
-    float best_score = std::numeric_limits<float>::lowest();
-    Move best_move;
+Search::Search(Game& game) : game(game), running(true), result_ready(false), workers_to_start(0), workers_finished(0) {
+    NNUE::loadModel("models/nnue.bin");
 
-    std::vector<Move> moves = game.getLegalMoves();
-    orderMoves(moves, game.getBoard());
-    GameState game_state = game.getGameState(moves);
+    nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
+    nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));
+
+    int num_workers = std::thread::hardware_concurrency();
+    if (num_workers == 0) {
+        num_workers = 1;
+    }
+    workers.reserve(num_workers);
+    for (int i = 0; i < num_workers; i++) {
+        workers.emplace_back(&Search::workerLoop, this);
+    }
+}
+
+float Search::negamax(int depth, float alpha, float beta, Game& game, NNUE& nnue, std::mt19937& rng) {
+    // Terminal state
+    GameState game_state = game.getGameState();
     if (game_state == GameState::Draw) {
         return DRAW_SCORE;
     }
@@ -26,111 +43,169 @@ float Search::maximise(Game& game, int depth, float alpha, float beta) {
         return -CHECKMATE_SCORE - depth;
     }
 
+    float alpha_original = alpha;
+
+    // Probe transposition table
+    std::uint64_t zobrist_key = game.getZobristKey();
+    TTEntry tt_entry;
+    if (transposition_table.probe(zobrist_key, tt_entry) && tt_entry.depth >= depth) {
+        if ((tt_entry.flag == TTFlag::Exact)
+            || (tt_entry.flag == TTFlag::LowerBound && tt_entry.value >= beta)
+            || (tt_entry.flag == TTFlag::UpperBound && tt_entry.value <= alpha))
+        {
+            return tt_entry.value;
+        }
+    }
+
+    // Reached max depth
     if (depth == 0) {
-        return evaluate(game.getBoard());
-    }
+        float value = evaluate(game.getTurn(), nnue);
 
-    for (const Move& move : moves) {
-        makeMove(move, game);
-        float score = minimise(game, depth - 1, alpha, beta);
-        if (score > best_score) {
-            best_score = score;
-            best_move = move;
+        if (game.getTurn() == Colour::Black) {
+            return -value;
         }
-        undoMove(move, game);
-
-        if (best_score >= beta) {
-            break;
-        }
-        alpha = std::max(alpha, best_score);
+        return value;
     }
-
-    previous_best_moves[game.getBoard().getPositionKey(moves)] = best_move;
-
-    return best_score;
-}
-
-float Search::minimise(Game& game, int depth, float alpha, float beta) {
-    float best_score = std::numeric_limits<float>::max();
-    Move best_move;
-
-    std::vector<Move> moves = game.getLegalMoves();
-    orderMoves(moves, game.getBoard());
-    GameState game_state = game.getGameState(moves);
-    if (game_state == GameState::Draw) {
-        return DRAW_SCORE;
-    }
-    if (game_state == GameState::Checkmate) {
-        return CHECKMATE_SCORE + depth;
-    }
-
-    if (depth == 0) {
-        return evaluate(game.getBoard());
-    }
-
-    for (const Move& move : moves) {
-        makeMove(move, game);
-        float score = maximise(game, depth - 1, alpha, beta);
-        if (score < best_score) {
-            best_score = score;
-            best_move = move;
-        }
-        undoMove(move, game);
-
-        if (best_score <= alpha) {
-            break;
-        }
-        beta = std::min(beta, best_score);
-    }
-
-    previous_best_moves[game.getBoard().getPositionKey(moves)] = best_move;
-
-    return best_score;
-}
-
-Move Search::minimax(Game& game) {
-    nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(game.getBoard(), Colour::White));
-    nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(game.getBoard(), Colour::Black));
 
     Move best_move;
+    float best_value = std::numeric_limits<float>::lowest();
+
     std::vector<Move> moves = game.getLegalMoves();
-    orderMoves(moves, game.getBoard());
+    orderMoves(moves, game, rng);
+
+    best_value = std::numeric_limits<float>::lowest();
+    for (const Move& move : moves) {
+        if (result_ready) {
+            return 0.0f;
+        }
+
+        makeMove(move, game, nnue);
+        float value = -negamax(depth - 1, -beta, -alpha, game, nnue, rng);
+        undoMove(move, game, nnue);
+
+        if (value > best_value) {
+            best_value = value;
+            best_move = move;
+        }
+
+        alpha = std::max(alpha, value);
+        if (alpha >= beta) {
+            break;
+        }
+    }
+
+    
+    if (best_value <= alpha_original) {
+        transposition_table.store(zobrist_key, TTFlag::UpperBound, best_value, depth, best_move);
+    } else if (best_value >= beta) {
+        transposition_table.store(zobrist_key, TTFlag::LowerBound, best_value, depth, best_move);
+    } else {
+        transposition_table.store(zobrist_key, TTFlag::Exact, best_value, depth, best_move);
+    }
+
+    return best_value;
+}
+
+std::pair<Move, float> Search::negamaxRoot(int depth, Game& game, NNUE& nnue, std::mt19937& rng) {
+    std::vector<Move> moves = game.getLegalMoves();
+    orderMoves(moves, game, rng);
+
     float alpha = std::numeric_limits<float>::lowest();
     float beta = std::numeric_limits<float>::max();
 
-    int depth = 6;
+    Move best_move;
+    float best_value = std::numeric_limits<float>::lowest();
 
-    if (game.getTurn() == Colour::White) {
-        float best_score = std::numeric_limits<float>::lowest();
-        for (const Move& move : moves) {
-            makeMove(move, game);
-
-            float score = minimise(game, depth - 1, alpha, beta);
-            if (score > best_score) {
-                best_score = score;
-                best_move = move;
-            }
-            alpha = std::max(alpha, best_score);
-
-            undoMove(move, game);
+    for (const Move& move : moves) {
+        if (result_ready) {
+            break;
         }
-    } else {
-        float best_score = std::numeric_limits<float>::max();
-        for (const Move& move : moves) {
-            makeMove(move, game);
+        
+        makeMove(move, game, nnue);
+        float value = -negamax(depth - 1, -beta, -alpha, game, nnue, rng);
+        undoMove(move, game, nnue);
 
-            float score = maximise(game, depth - 1, alpha, beta);
-            if (score < best_score) {
-                best_score = score;
-                best_move = move;
-            }
-            beta = std::min(beta, best_score);
+        if (value > best_value) {
+            best_value = value;
+            best_move = move;
+        }
 
-            undoMove(move, game);
+        alpha = std::max(alpha, value);
+    }
+
+    return {best_move, best_value};
+}
+
+std::pair<Move, float> Search::run(int depth) {
+    {
+        std::lock_guard<std::mutex> lock(worker_mutex);
+
+        root_depth = depth;
+
+        workers_to_start = workers.size();
+        workers_finished = 0;
+    }
+
+    result_ready = false;
+
+    // std::cout << "RUN: notifying workers\n"; //test
+
+    work_available.notify_all();
+
+    {
+        std::unique_lock<std::mutex> lock(worker_mutex);
+
+        while (workers_finished < workers.size()) {
+            work_finished.wait(lock);
         }
     }
 
-    return best_move;
+    // std::cout << "RUN: workers finished\n"; //test
+
+    return result;
+}
+
+void Search::workerLoop() {
+    std::mt19937 rng(rd());
+
+    while (running) {
+        {
+            std::unique_lock<std::mutex> lock(worker_mutex);
+
+            while (running && workers_to_start == 0) {
+                work_available.wait(lock);
+            }
+            if (!running) {
+                return;
+            }
+
+            workers_to_start--;
+        }
+
+        // std::cout << "WORKER: starting search\n"; //test
+
+        Game thread_game = this->game;
+        NNUE thread_nnue = this->nnue;
+        
+        std::pair<Move, float> worker_result = negamaxRoot(root_depth, thread_game, thread_nnue, rng);
+
+        // std::cout << "WORKER: search finished\n"; //test
+
+        if (!result_ready) {
+            {
+                std::lock_guard<std::mutex> lock(worker_mutex);
+                result = worker_result;
+            }
+            result_ready = true;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(worker_mutex);
+            workers_finished++;
+        }
+
+        work_finished.notify_one();
+    }
 }
 
 void Search::getFeatureUpdates(std::vector<int>& after_move_features, std::vector<int>& before_move_features, int king_square, const Move& move, const Board& board) {
@@ -206,7 +281,7 @@ void Search::getFeatureUpdates(std::vector<int>& after_move_features, std::vecto
     }
 }
 
-void Search::makeMove(const Move& move, Game& game) {
+void Search::makeMove(const Move& move, Game& game, NNUE& nnue) {
     const Board& board = game.getBoard();
     const Piece& piece = board.getPiece(move.from);
 
@@ -216,40 +291,40 @@ void Search::makeMove(const Move& move, Game& game) {
                 std::vector<int> black_added_features;
                 std::vector<int> black_removed_features;
                 getFeatureUpdates(black_added_features, black_removed_features, board.getKingSquare(Colour::Black), move, board);
-                nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+                nnue.updateBlackAccumulator(black_added_features, black_removed_features);
             }
             
             game.makeMove(move);
 
-            nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(board, Colour::White));
+            nnue.refreshWhiteAccumulator(getActiveFeatures(board, Colour::White));
         } else {
             if (move.type == MoveType::Castle) {
                 std::vector<int> white_added_features;
                 std::vector<int> white_removed_features;
                 getFeatureUpdates(white_added_features, white_removed_features, board.getKingSquare(Colour::White), move, board);
-                nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+                nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
             }
 
             game.makeMove(move);
 
-            nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(board, Colour::Black));
+            nnue.refreshBlackAccumulator(getActiveFeatures(board, Colour::Black));
         }
     } else {
         std::vector<int> white_added_features;
         std::vector<int> white_removed_features;
         getFeatureUpdates(white_added_features, white_removed_features, board.getKingSquare(Colour::White), move, board);
-        nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+        nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
 
         std::vector<int> black_added_features;
         std::vector<int> black_removed_features;
         getFeatureUpdates(black_added_features, black_removed_features, board.getKingSquare(Colour::Black), move, board);
-        nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+        nnue.updateBlackAccumulator(black_added_features, black_removed_features);
 
         game.makeMove(move);
     }
 }
 
-void Search::undoMove(const Move& move, Game& game) {
+void Search::undoMove(const Move& move, Game& game, NNUE& nnue) {
     game.undoMove();
 
     const Board& board = game.getBoard();
@@ -261,43 +336,67 @@ void Search::undoMove(const Move& move, Game& game) {
                 std::vector<int> black_added_features;
                 std::vector<int> black_removed_features;
                 getFeatureUpdates(black_removed_features, black_added_features, board.getKingSquare(Colour::Black), move, board);
-                nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+                nnue.updateBlackAccumulator(black_added_features, black_removed_features);
             }
 
-            nnue.refreshWhiteAccumulator(white_acc_values, getActiveFeatures(board, Colour::White));
+            nnue.refreshWhiteAccumulator(getActiveFeatures(board, Colour::White));
         } else {
             if (move.type == MoveType::Castle) {
                 std::vector<int> white_added_features;
                 std::vector<int> white_removed_features;
                 getFeatureUpdates(white_removed_features, white_added_features, board.getKingSquare(Colour::White), move, board);
-                nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+                nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
             }
 
-            nnue.refreshBlackAccumulator(black_acc_values, getActiveFeatures(board, Colour::Black));
+            nnue.refreshBlackAccumulator(getActiveFeatures(board, Colour::Black));
         }
     } else {
         std::vector<int> white_added_features;
         std::vector<int> white_removed_features;
         getFeatureUpdates(white_removed_features, white_added_features, board.getKingSquare(Colour::White), move, board);
-        nnue.updateWhiteAccumulator(white_acc_values, white_added_features, white_removed_features);
+        nnue.updateWhiteAccumulator(white_added_features, white_removed_features);
 
         std::vector<int> black_added_features;
         std::vector<int> black_removed_features;
         getFeatureUpdates(black_removed_features, black_added_features, board.getKingSquare(Colour::Black), move, board);
-        nnue.updateBlackAccumulator(black_acc_values, black_added_features, black_removed_features);
+        nnue.updateBlackAccumulator(black_added_features, black_removed_features);
     }
 }
 
-float Search::evaluate(const Board& board) {
-    int side_to_move;
-    if (board.getTurn() == Colour::White) {
-        side_to_move = 0;
-    } else {
-        side_to_move = 1;
-    }
+void Search::makeMove(const Move& move) {
+    makeMove(move, game, nnue);
+}
 
-    float score = nnue.forward(white_acc_values, black_acc_values, side_to_move);
-    return score;
+void Search::undoMove(const Move& move) {
+    undoMove(move, game, nnue);
+}
+
+// void Search::makeBaseMove(const Move& move) {
+//     makeMove(move);
+    
+    // {
+    //     std::lock_guard<std::mutex> lock(worker_mutex);
+
+    //     for (auto& [thread_game, thread_nnue] : thread_states) {
+    //         makeMove(move, thread_game, thread_nnue);
+    //     }
+    // }
+// }
+
+// void Search::undoBaseMove(const Move& move) {
+//     undoMove(move);
+
+    // {
+    //     std::lock_guard<std::mutex> lock(worker_mutex);
+
+    //     for (auto& [thread_game, thread_nnue] : thread_states) {
+    //         undoMove(move, thread_game, thread_nnue);
+    //     }
+    // }
+// }
+
+float Search::evaluate(Colour side_to_move, NNUE& nnue) const {
+    return nnue.forward(static_cast<int>(side_to_move));
 }
 
 int Search::getFeature(int square, const Piece& piece, int king_square) const {
@@ -331,7 +430,11 @@ std::vector<int> Search::getActiveFeatures(const Board& board, Colour colour) co
     return active_features;
 }
 
-int Search::scoreMove(const Move& move, const Board& board) const {
+int Search::scoreMove(const Move& move, const Board& board, const Move* tt_move) const {
+    if (tt_move != nullptr && move == *tt_move) {
+        return 100000;
+    }
+
     int score = 0;
     if (move.type == MoveType::Promotion) {
         score += 3000;
@@ -340,238 +443,130 @@ int Search::scoreMove(const Move& move, const Board& board) const {
         score += 100;
     }
     if (board.getPiece(move.to).type != PieceType::None) {
-        score += 1000;
+        const Piece& attacker = board.getPiece(move.from);
+        const Piece& victim = board.getPiece(move.to);
+
+        score += 1000 + (pieceValue(victim.type) * 10 - pieceValue(attacker.type));
     }
 
     return score;
 }
 
-void Search::orderMoves(std::vector<Move>& moves, const Board& board) {
-    int sort_start = 0;
+void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng) {
+    // int sort_start = 0;
 
-    std::string position_key = board.getPositionKey(moves);
+    // std::string position_key = game.getPositionFen();
 
-    auto it = previous_best_moves.find(position_key);
-    if (it != previous_best_moves.end()) {
-        const Move& best_move = it->second;
-        for (int i = 0; i < moves.size(); i++) {
-            if (moves[i].from == best_move.from && moves[i].to == best_move.to && moves[i].type == best_move.type
-                    && moves[i].promotion_piece.type == best_move.promotion_piece.type)
-            {
-                std::swap(moves[0], moves[i]);
-                sort_start = 1;
-                break;
-            }
-        }
+    // auto it = previous_best_moves.find(position_key);
+    // if (it != previous_best_moves.end()) {
+    //     const Move& best_move = it->second;
+    //     for (int i = 0; i < moves.size(); i++) {
+    //         if (moves[i].from == best_move.from && moves[i].to == best_move.to && moves[i].type == best_move.type
+    //                 && moves[i].promotion_piece.type == best_move.promotion_piece.type)
+    //         {
+    //             std::swap(moves[0], moves[i]);
+    //             sort_start = 1;
+    //             break;
+    //         }
+    //     }
+    // }
+    // std::sort(moves.begin() + sort_start, moves.end(), [&](const Move& a, const Move& b) {
+    //     return (scoreMove(a, game.getBoard()) > scoreMove(b, game.getBoard()));
+    // });
+
+
+    TTEntry tt_entry;
+    const Move* tt_move = nullptr;
+    if (transposition_table.probe(game.getZobristKey(), tt_entry)) {
+        tt_move = &tt_entry.best_move;
     }
-    std::sort(moves.begin() + sort_start, moves.end(), [&](const Move& a, const Move& b) {
-        return (scoreMove(a, board) > scoreMove(b, board));
-    });
+
+    std::shuffle(moves.begin(), moves.end(), rng);
+
+    std::stable_sort(moves.begin(), moves.end(),
+        [&](const Move& a, const Move& b) {
+            return scoreMove(a, game.getBoard(), tt_move) >
+                scoreMove(b, game.getBoard(), tt_move);
+        }
+    );
 }
 
-// int Search::pieceValue(PieceType piece_type) const {
-//     switch (piece_type) {
-//         case (PieceType::Pawn):
-//             return 100;
-//         case (PieceType::Knight):
-//             return 300;
-//         case (PieceType::Bishop):
-//             return 300;
-//         case (PieceType::Rook):
-//             return 500;
-//         case (PieceType::Queen):
-//             return 900;
-//         default:
-//             return 0;
+// void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng) {
+//     struct ScoredMove {
+//         Move move;
+//         int score;
+//     };
+
+//     TTEntry tt_entry;
+//     const Move* tt_move = nullptr;
+//     if (transposition_table.probe(game.getZobristKey(), tt_entry)) {
+//         tt_move = &tt_entry.best_move;
 //     }
-// }
 
-// int Search::evaluate(const Board& board) const {
-//     int score = 0;
+//     std::vector<ScoredMove> scored_moves;
+//     scored_moves.reserve(moves.size());
 
-//     for (int rank = 0; rank < 8; rank++) {
-//         for (int file = 0; file < 8; file++) {
-//             const Piece& piece = board.getPiece(rank, file);
-//             int value = pieceValue(piece.type);
-//             if (piece.colour == Colour::White) {
-//                 score += value;
-//             } else {
-//                 score -= value;
-//             }
+//     for (const Move& move : moves) {
+//         scored_moves.push_back({move, scoreMove(move, game.getBoard(), tt_move)});
+//     }
 
-//             if (piece.type == PieceType::Knight || piece.type == PieceType::Bishop) {
-//                 if (piece.colour == Colour::White) {
-//                     if (rank == 0) {
-//                         score -= 50;
-//                     }
-//                 } else {
-//                     if (rank == 7) {
-//                         score += 50;
-//                     }
-//                 }
-//             } else if (piece.type == PieceType::Pawn) {
-//                 if (piece.colour == Colour::White) {
-//                     if (file == 3 || file == 4) {
-//                         if (rank == 1) {
-//                             score -= 30;
-//                         } else if (rank == 2) {
-//                             score += 10;
-//                         } else if (rank == 3) {
-//                             score += 25;
-//                         }
-//                     }
-//                     score += (5 * (rank - 1));
-                    
-//                     const int directions[2] = {1, -1};
-//                     for (const auto& direction : directions) {
-//                         int pawn_file = file + direction;
-//                         if (pawn_file >= 0 && pawn_file < 8) {
-//                             for (int pawn_rank = rank - 1; pawn_rank <= rank + 1; pawn_rank++) {
-//                                 if (pawn_rank >= 0 && pawn_rank < 8) {
-//                                     const Piece& pawn_piece = board.getPiece(pawn_rank, pawn_file);
-//                                     if (pawn_piece.type == PieceType::Pawn && pawn_piece.colour == Colour::White) {
-//                                         score += 10;
-//                                         break;
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                     for (int pawn_rank = 1; pawn_rank < 8; pawn_rank++) {
-//                         const Piece& pawn_piece = board.getPiece(pawn_rank, file);
-//                         if (pawn_piece.type == PieceType::Pawn && pawn_piece.colour == Colour::White) {
-//                             score -= 10;
-//                         }
-//                     }
-                    
-//                 } else {
-//                     if (file == 3 || file == 4) {
-//                         if (rank == 6) {
-//                             score += 30;
-//                         } else if (rank == 5) {
-//                             score -= 10;
-//                         } else if (rank == 4) {
-//                             score -= 25;
-//                         }
-//                     }
-//                     score -= (5 * (6 - rank));
+//     std::shuffle(scored_moves.begin(), scored_moves.end(), rng);
 
-//                     const int directions[2] = {1, -1};
-//                     for (const auto& direction : directions) {
-//                         int pawn_file = file + direction;
-//                         if (pawn_file >= 0 && pawn_file < 8) {
-//                             for (int pawn_rank = rank - 1; pawn_rank <= rank + 1; pawn_rank++) {
-//                                 if (pawn_rank >= 0 && pawn_rank < 8) {
-//                                     const Piece& pawn_piece = board.getPiece(pawn_rank, pawn_file);
-//                                     if (pawn_piece.type == PieceType::Pawn && pawn_piece.colour == Colour::Black) {
-//                                         score -= 10;
-//                                         break;
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                     for (int pawn_rank = 1; pawn_rank < 8; pawn_rank++) {
-//                         const Piece& pawn_piece = board.getPiece(pawn_rank, file);
-//                         if (pawn_piece.type == PieceType::Pawn && pawn_piece.colour == Colour::Black) {
-//                             score += 10;
-//                         }
-//                     }
-//                 }
-            
-//             // King safety
-//             } else if (piece.type == PieceType::King) {
-//                 if (piece.colour == Colour::White) {
-//                     if (rank == 0) {
-//                         for (int i = -1; i <= 1; i++) {
-//                             if (file + i >= 0 && file + i < 8) {
-//                                 const Piece& protecting_piece = board.getPiece(1, file + i);
-//                                 if (protecting_piece.colour == Colour::White && protecting_piece.type == PieceType::Pawn) {
-//                                     score += 25;
-//                                 }
-//                             } else {
-//                                 score += 25;
-//                             }
-//                         }
-//                     }
-//                 } else {
-//                     if (rank == 7) {
-//                         for (int i = -1; i <= 1; i++) {
-//                             if (file + i >= 0 && file + i < 8) {
-//                                 const Piece& protecting_piece = board.getPiece(6, file + i);
-//                                 if (protecting_piece.colour == Colour::Black && protecting_piece.type == PieceType::Pawn) {
-//                                     score -= 25;
-//                                 }
-//                             } else {
-//                                 score -= 25;
-//                             }
-//                         }
-//                     }
-//                 }
-
-//             // Rooks connected
-//             // add preference for rook on file attacking important pieces, and for queen above rook,
-//             } else if (piece.type == PieceType::Rook) {
-//                 const int directions[2][2] = {
-//                     {1, 0},
-//                     {0, 1}
-//                 };
-//                 for (const auto& direction : directions) {
-//                     int rank_direction = direction[0];
-//                     int file_direction = direction[1];
-
-//                     int current_rank = rank + rank_direction;
-//                     int current_file = file + file_direction;
-//                     while (current_rank >= 0 && current_file >= 0 && current_rank < 8 && current_file < 8) {
-//                         const Piece& current_piece = board.getPiece(current_rank, current_file);
-//                         if (current_piece.colour == piece.colour && current_piece.type == PieceType::Rook) {
-//                             if (piece.colour == Colour::White) {
-//                                 if (rank_direction == 1) {
-//                                     score += 50;
-//                                 } else {
-//                                     score += 25;
-//                                 }
-//                             } else {
-//                                 if (rank_direction == 1) {
-//                                     score -= 50;
-//                                 } else {
-//                                     score -= 25;
-//                                 }
-//                             }
-//                         } else if (current_piece.type != PieceType::None) {
-//                             break;
-//                         }
-
-//                         current_rank += rank_direction;
-//                         current_file += file_direction; 
-//                     }
-//                 }
-//             } else if (piece.type == PieceType::Queen) {
-//                 const int directions[2][2] = {
-//                     {1, 0},
-//                     {-1, 0}
-//                 };
-//                 for (const auto& direction : directions) {
-//                     int rank_direction = direction[0];
-//                     int current_rank = rank + rank_direction;
-//                     while (current_rank >= 0 && current_rank < 8) {
-//                         const Piece& current_piece = board.getPiece(current_rank, file);
-//                         if (current_piece.colour == piece.colour && current_piece.type == PieceType::Rook) {
-//                             if (piece.colour == Colour::White) {
-//                                 score += 25;
-//                             } else {
-//                                 score -= 25;
-//                             }
-//                         } else if (current_piece.type != PieceType::None) {
-//                             break;
-//                         }
-
-//                         current_rank += rank_direction;
-//                     }
-//                 }
-//             }
+//     std::stable_sort(scored_moves.begin(), scored_moves.end(),
+//         [](const ScoredMove& a, const ScoredMove& b) {
+//             return a.score > b.score;
 //         }
-//     }
+//     );
 
-//     return score;
+//     for (std::size_t i = 0; i < moves.size(); ++i) {
+//         moves[i] = scored_moves[i].move;
+//     }
 // }
+
+int Search::pieceValue(PieceType type) const {
+    switch (type) {
+        case PieceType::Pawn:
+            return 1;
+        case PieceType::Knight:
+            return 3;
+        case PieceType::Bishop:
+            return 3;
+        case PieceType::Rook:
+            return 5;
+        case PieceType::Queen:
+            return 9;
+        case PieceType::King:
+            return 10;
+        case PieceType::None:
+            return 0;
+    }
+    return 0;
+}
+
+void Search::reset() {
+    nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
+    nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));
+
+    // {
+    //     std::lock_guard<std::mutex> lock(worker_mutex);
+
+    //     for (auto& [thread_game, thread_nnue] : thread_states) {
+    //         thread_game = this->game;
+
+    //         thread_nnue.refreshWhiteAccumulator(getActiveFeatures(thread_game.getBoard(), Colour::White));
+    //         thread_nnue.refreshBlackAccumulator(getActiveFeatures(thread_game.getBoard(), Colour::Black));
+    //     }
+    // }
+}
+
+Search::~Search() {
+    running = false;
+
+    work_available.notify_all();
+
+    for (std::thread& worker : workers) {
+        if (worker.joinable()) {
+            worker.join();
+        }
+    }
+}

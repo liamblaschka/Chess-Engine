@@ -7,9 +7,12 @@
 #include <vector>
 #include <cmath>
 
-MoveGenerator::MoveGenerator() {}
+MoveGenerator::MoveGenerator() : en_passant_possible(false) {
+    legal_moves.reserve(256);
+    pseudo_legal_moves.reserve(256);
+}
 
-void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+void MoveGenerator::generatePawnMoves(const Board& board, Colour turn, int rank, int file) {
     int direction;
     if (turn == Colour::White) {
         direction = 1;
@@ -24,19 +27,19 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
     // Foward move
     if (board.getPiece(rank + direction, file).type == PieceType::None) {
         if (rank + direction > 0 && rank + direction < 7) {
-            moves.push_back(Move(rank, file, rank + direction, file));
+            pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file));
 
             // Double move from starting rank
             if ((turn == Colour::White && rank == 1) || (turn == Colour::Black && rank == 6)) {
                 if (board.getPiece(rank + (direction * 2), file).type == PieceType::None) {
-                    moves.push_back(Move(rank, file, rank + (direction * 2), file));
+                    pseudo_legal_moves.push_back(Move(rank, file, rank + (direction * 2), file));
                 }
             }
         } else {
-            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Knight, turn)));
-            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
-            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Rook, turn)));
-            moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+            pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+            pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+            pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+            pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file, MoveType::Promotion, Piece(PieceType::Queen, turn)));
         }
     }
 
@@ -45,12 +48,12 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
         const Piece& target = board.getPiece(rank + direction, file - 1);
         if (target.colour != Colour::None && target.colour != turn) {
             if (rank + direction > 0 && rank + direction < 7) {
-                moves.push_back(Move(rank, file, rank + direction, file - 1));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file - 1));
             } else {
-                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
-                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
-                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
-                moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
             }
         }
     }
@@ -60,36 +63,28 @@ void MoveGenerator::generatePawnMoves(const Board& board, std::vector<Move>& mov
         const Piece& target = board.getPiece(rank + direction, file + 1);
         if (target.colour != Colour::None && target.colour != turn) {
             if (rank + direction > 0 && rank + direction < 7) {
-                moves.push_back(Move(rank, file, rank + direction, file + 1));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file + 1));
             } else {
-                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
-                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
-                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
-                moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Knight, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Bishop, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Rook, turn)));
+                pseudo_legal_moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::Promotion, Piece(PieceType::Queen, turn)));
             }
         }
     }
 
     // En passant
-    const MoveState* last_move = board.getLastMove();
-    if (last_move != nullptr) {
-        int from_rank = last_move->move.from / 8;
-        int to_rank = last_move->move.to / 8;
-        int to_file = last_move->move.to % 8;
-        const Piece& last_move_piece = board.getPiece(last_move->move.to);
-        if (last_move_piece.type == PieceType::Pawn && std::abs(to_rank - from_rank) == 2) {
-            if (to_rank == rank) {
-                if (to_file == file - 1) {
-                    moves.push_back(Move(rank, file, rank + direction, file - 1, MoveType::EnPassant));
-                } else if (to_file == file + 1) {
-                    moves.push_back(Move(rank, file, rank + direction, file + 1, MoveType::EnPassant));
-                }
-            }
+    int en_passant_square = board.getEnPassantSquare();
+    if (en_passant_square != -1) {
+        int en_passant_rank = en_passant_square / 8;
+        int en_passant_file = en_passant_square % 8;
+        if (en_passant_rank == rank + direction && std::abs(en_passant_file - file) == 1) {
+            pseudo_legal_moves.push_back(Move(rank, file, en_passant_rank, en_passant_file, MoveType::EnPassant));
         }
     }
 }
 
-void MoveGenerator::generateKnightMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+void MoveGenerator::generateKnightMoves(const Board& board, Colour turn, int rank, int file) {
     const int directions[8][2] = {
         {2, -1},
         {2, 1},
@@ -111,12 +106,12 @@ void MoveGenerator::generateKnightMoves(const Board& board, std::vector<Move>& m
 
         const Piece& target = board.getPiece(target_rank, target_file);
         if (target.type == PieceType::None || target.colour != turn) {
-            moves.push_back(Move(rank, file, target_rank, target_file));
+            pseudo_legal_moves.push_back(Move(rank, file, target_rank, target_file));
         }
     }
 }
 
-void MoveGenerator::generateSlidingMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file, const int directions[][2], int direction_count) {
+void MoveGenerator::generateSlidingMoves(const Board& board, Colour turn, int rank, int file, const int directions[][2], int direction_count) {
     for (int i = 0; i < direction_count; i++) {
         int rank_direction = directions[i][0];
         int file_direction = directions[i][1];
@@ -126,10 +121,10 @@ void MoveGenerator::generateSlidingMoves(const Board& board, std::vector<Move>& 
         while (target_rank >= 0 && target_file >= 0 && target_rank < 8 && target_file < 8) {
             const Piece& target = board.getPiece(target_rank, target_file);
             if (target.type == PieceType::None) {
-                moves.push_back(Move(rank, file, target_rank, target_file));
+                pseudo_legal_moves.push_back(Move(rank, file, target_rank, target_file));
             } else {
                 if (target.colour != turn) {
-                    moves.push_back(Move(rank, file, target_rank, target_file));
+                    pseudo_legal_moves.push_back(Move(rank, file, target_rank, target_file));
                 }
                 break;
             }
@@ -140,7 +135,7 @@ void MoveGenerator::generateSlidingMoves(const Board& board, std::vector<Move>& 
     }
 }
 
-void MoveGenerator::generateBishopMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+void MoveGenerator::generateBishopMoves(const Board& board, Colour turn, int rank, int file) {
     const int directions[4][2] = {
         {1, -1},
         {1, 1},
@@ -148,10 +143,10 @@ void MoveGenerator::generateBishopMoves(const Board& board, std::vector<Move>& m
         {-1, -1}
     };
 
-    generateSlidingMoves(board, moves, turn, rank, file, directions, 4);
+    generateSlidingMoves(board, turn, rank, file, directions, 4);
 }
 
-void MoveGenerator::generateRookMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+void MoveGenerator::generateRookMoves(const Board& board, Colour turn, int rank, int file) {
     const int directions[4][2] = {
         {1, 0},
         {0, 1},
@@ -159,10 +154,10 @@ void MoveGenerator::generateRookMoves(const Board& board, std::vector<Move>& mov
         {0, -1}
     };
 
-    generateSlidingMoves(board, moves, turn, rank, file, directions, 4);
+    generateSlidingMoves(board, turn, rank, file, directions, 4);
 }
 
-void MoveGenerator::generateQueenMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+void MoveGenerator::generateQueenMoves(const Board& board, Colour turn, int rank, int file) {
     const int directions[8][2] = {
         {1, 0},
         {0, 1},
@@ -174,10 +169,10 @@ void MoveGenerator::generateQueenMoves(const Board& board, std::vector<Move>& mo
         {-1, -1}
     };
 
-    generateSlidingMoves(board, moves, turn, rank, file, directions, 8);
+    generateSlidingMoves(board, turn, rank, file, directions, 8);
 }
 
-void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& moves, Colour turn, int rank, int file) {
+void MoveGenerator::generateKingMoves(const Board& board, Colour turn, int rank, int file) {
     const int directions[8][2] = {
         {1, 0},
         {0, 1},
@@ -202,7 +197,7 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
 
         const Piece& target = board.getPiece(target_rank, target_file);
         if (target.type == PieceType::None || target.colour != turn) {
-            moves.push_back(Move(rank, file, target_rank, target_file));
+            pseudo_legal_moves.push_back(Move(rank, file, target_rank, target_file));
         }
     }
 
@@ -217,7 +212,7 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
                     && board.getPiece(Square::D1).type == PieceType::None
                     && !board.isSquareAttacked(Square::D1, opponent))
                 {
-                    moves.push_back(Move(Square::E1, Square::C1, MoveType::Castle));
+                    pseudo_legal_moves.push_back(Move(Square::E1, Square::C1, MoveType::Castle));
                 }
             } else {
                 if (board.getPiece(Square::B8).type == PieceType::None
@@ -225,7 +220,7 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
                     && board.getPiece(Square::D8).type == PieceType::None
                     && !board.isSquareAttacked(Square::D8, opponent))
                 {
-                    moves.push_back(Move(Square::E8, Square::C8, MoveType::Castle));
+                    pseudo_legal_moves.push_back(Move(Square::E8, Square::C8, MoveType::Castle));
                 }
             }
         }
@@ -235,14 +230,14 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
                     && board.getPiece(Square::G1).type == PieceType::None
                     && !board.isSquareAttacked(Square::F1, opponent))
                 {
-                    moves.push_back(Move(Square::E1, Square::G1, MoveType::Castle));
+                    pseudo_legal_moves.push_back(Move(Square::E1, Square::G1, MoveType::Castle));
                 }
             } else {
                 if (board.getPiece(Square::F8).type == PieceType::None
                     && board.getPiece(Square::G8).type == PieceType::None
                     && !board.isSquareAttacked(Square::F8, opponent))
                 {
-                    moves.push_back(Move(Square::E8, Square::G8, MoveType::Castle));
+                    pseudo_legal_moves.push_back(Move(Square::E8, Square::G8, MoveType::Castle));
                 }
             }
         }
@@ -250,7 +245,6 @@ void MoveGenerator::generateKingMoves(const Board& board, std::vector<Move>& mov
 }
 
 std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
-    std::vector<Move> moves;
     Colour turn = board.getTurn();
     for (int rank = 0; rank < 8; rank++) {
         for (int file = 0; file < 8; file++) {
@@ -258,22 +252,22 @@ std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
             if (piece.colour == turn) {
                 switch (piece.type) {
                     case (PieceType::Pawn):
-                        generatePawnMoves(board, moves, turn, rank, file);
+                        generatePawnMoves(board, turn, rank, file);
                         break;
                     case (PieceType::Knight):
-                        generateKnightMoves(board, moves, turn, rank, file);
+                        generateKnightMoves(board, turn, rank, file);
                         break;
                     case (PieceType::Bishop):
-                        generateBishopMoves(board, moves, turn, rank, file);
+                        generateBishopMoves(board, turn, rank, file);
                         break;
                     case (PieceType::Rook):
-                        generateRookMoves(board, moves, turn, rank, file);
+                        generateRookMoves(board, turn, rank, file);
                         break;
                     case (PieceType::Queen):
-                        generateQueenMoves(board, moves, turn, rank, file);
+                        generateQueenMoves(board, turn, rank, file);
                         break;
                     case (PieceType::King):
-                        generateKingMoves(board, moves, turn, rank, file);
+                        generateKingMoves(board, turn, rank, file);
                         break;
                     case (PieceType::None):
                         break;
@@ -282,12 +276,15 @@ std::vector<Move> MoveGenerator::generatePseudoLegalMoves(const Board& board) {
         }
     }
 
-    return moves;
+    return pseudo_legal_moves;
 }
 
-std::vector<Move> MoveGenerator::generateLegalMoves(Board& board) {
-    std::vector<Move> legal_moves;
-    std::vector<Move> pseudo_legal_moves = generatePseudoLegalMoves(board);
+void MoveGenerator::generateLegalMoves(Board& board) {
+    legal_moves.clear();
+    pseudo_legal_moves.clear();
+    en_passant_possible = false;
+
+    pseudo_legal_moves = generatePseudoLegalMoves(board);
 
     const Colour turn = board.getTurn();
 
@@ -296,10 +293,16 @@ std::vector<Move> MoveGenerator::generateLegalMoves(Board& board) {
 
         if (!board.isKingInCheck(turn)) {
             legal_moves.push_back(move);
+
+            if (move.type == MoveType::EnPassant) {
+                en_passant_possible = true;
+            }
         }
 
         board.undoMove();
     }
-
-    return legal_moves;
 }
+
+const std::vector<Move>& MoveGenerator::getLegalMoves() const { return legal_moves; }
+
+bool MoveGenerator::isEnPassantPossible() const { return en_passant_possible; }

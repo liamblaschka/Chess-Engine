@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <cstdint>
 
 enum class GameState {
     Playing,
@@ -15,29 +16,33 @@ enum class GameState {
 };
 
 struct GameHistory {
-    std::string position_key;
+    std::uint64_t position_key;
     int halfmove_clock;
+    int fullmove_number;
 };
 
 class Game {
 private:
     Board board;
     MoveGenerator move_generator;
-    std::unordered_map<std::string, int> positions;
-    std::string current_position;
-    std::vector<Move> current_legal_moves;
+    std::unordered_map<std::uint64_t, int> position_counts;
+    std::uint64_t current_repetition_key;
     int halfmove_clock = 0;
+    int fullmove_number = 1;
     std::vector<GameHistory> history;
 public:
     Game();
-    void trackPosition(const std::vector<Move>& legal_moves);
-    GameState getGameState(const std::vector<Move>& legal_moves) const;
-    std::vector<Move> getLegalMoves();
+    void trackPosition();
+    GameState getGameState() const;
+    const std::vector<Move>& getLegalMoves() const;
     void makeMove(const Move& move);
     void undoMove();
     Colour getTurn() const;
     Board& getBoard();
     const Board& getBoard() const;
 
+    std::string getPositionFen() const;
     void setPosition(const std::string& fen);
+
+    std::uint64_t getZobristKey() const;
 };

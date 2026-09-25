@@ -1,8 +1,9 @@
 #include "Board.h"
 #include "Piece.h"
 #include "SquareConstants.h"
+#include "Zobrist.hpp"
 #include <array>
-#include <iostream>
+#include <cmath>
 
 Board::Board() {
     squares = {};
@@ -42,60 +43,69 @@ Board::Board() {
 
     white_castle_rights = {true, true};
     black_castle_rights = {true, true};
+
+    Zobrist::initialise();
+    zobrist_key = calculateZobristKey();
 }
 
 void Board::makeMove(const Move& move) {
+    Piece moving_piece = squares[move.from];
+
+    int previous_en_passant_square = en_passant_square;
+
     // Move
     switch (move.type) {
         case MoveType::Normal: {
-            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights, previous_en_passant_square, zobrist_key});
 
             // Castle rights if rook is captured
             const Piece& captured_piece = squares[move.to];
             if (captured_piece.type == PieceType::Rook) {
                 if (captured_piece.colour == Colour::White) {
-                    if (move.to == Square::A1) {
+                    if (move.to == Square::A1 && white_castle_rights.queen_side) {
                         white_castle_rights.queen_side = false;
-                    } else if (move.to == Square::H1) {
+                        zobrist_key ^= Zobrist::castle_rights[0];
+                    } else if (move.to == Square::H1 && white_castle_rights.king_side) {
                         white_castle_rights.king_side = false;
+                        zobrist_key ^= Zobrist::castle_rights[1];
                     }
                 } else if (captured_piece.colour == Colour::Black) {
-                    if (move.to == Square::A8) {
+                    if (move.to == Square::A8 && black_castle_rights.queen_side) {
                         black_castle_rights.queen_side = false;
-                    } else if (move.to == Square::H8) {
+                        zobrist_key ^= Zobrist::castle_rights[2];
+                    } else if (move.to == Square::H8 && black_castle_rights.king_side) {
                         black_castle_rights.king_side = false;
+                        zobrist_key ^= Zobrist::castle_rights[3];
                     }
                 }
             }
 
-            squares[move.to] = squares[move.from];
-            squares[move.from] = Piece();
+            setPiece(move.to, squares[move.from]);
+            setPiece(move.from, Piece());
             break;
         }
         case MoveType::Castle: {
-            Colour colour = squares[move.from].colour;
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights, previous_en_passant_square, zobrist_key});
 
-            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
-
-            squares[move.to] = squares[move.from];
-            squares[move.from] = Piece();
+            setPiece(move.to, squares[move.from]);
+            setPiece(move.from, Piece());
 
             if (move.to == Square::C1) {
                 // White Queen-side
-                squares[Square::D1] = squares[Square::A1];
-                squares[Square::A1] = Piece();
+                setPiece(Square::D1, squares[Square::A1]);
+                setPiece(Square::A1, Piece());
             } else if (move.to == Square::G1) {
                 // White King-side
-                squares[Square::F1] = squares[Square::H1];
-                squares[Square::H1] = Piece();
+                setPiece(Square::F1, squares[Square::H1]);
+                setPiece(Square::H1, Piece());
             } else if (move.to == Square::C8) {
                 // Black Queen-side
-                squares[Square::D8] = squares[Square::A8];
-                squares[Square::A8] = Piece();
+                setPiece(Square::D8, squares[Square::A8]);
+                setPiece(Square::A8, Piece());
             } else {
                 // Black King-side
-                squares[Square::F8] = squares[Square::H8];
-                squares[Square::H8] = Piece();
+                setPiece(Square::F8, squares[Square::H8]);
+                setPiece(Square::H8, Piece());
             }
             break;
         }
@@ -104,18 +114,18 @@ void Board::makeMove(const Move& move) {
             int to_rank = move.to / 8;
             int direction = to_rank - from_rank;
             int captured_square = move.to - (8 * direction);
-            move_history.push_back({move, squares[captured_square], captured_square, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[captured_square], captured_square, white_castle_rights, black_castle_rights, previous_en_passant_square, zobrist_key});
 
-            squares[move.to] = squares[move.from];
-            squares[move.from] = Piece();
-            squares[captured_square] = Piece();
+            setPiece(move.to, squares[move.from]);
+            setPiece(move.from, Piece());
+            setPiece(captured_square, Piece());
             break;
         }
         case MoveType::Promotion: {
-            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights});
+            move_history.push_back({move, squares[move.to], move.to, white_castle_rights, black_castle_rights, previous_en_passant_square, zobrist_key});
 
-            squares[move.to] = move.promotion_piece;
-            squares[move.from] = Piece();
+            setPiece(move.to, move.promotion_piece);
+            setPiece(move.from, Piece());
             break;
         }
     }
@@ -124,33 +134,56 @@ void Board::makeMove(const Move& move) {
     const Piece& piece = squares[move.to];
     if (piece.type == PieceType::King) {
         if (piece.colour == Colour::White) {
-            white_king_square = move.to;
-
-            white_castle_rights.queen_side = false;
-            white_castle_rights.king_side = false;
+            if (white_castle_rights.queen_side) {
+                white_castle_rights.queen_side = false;
+                zobrist_key ^= Zobrist::castle_rights[0];
+            }
+            if (white_castle_rights.king_side) {
+                white_castle_rights.king_side = false;
+                zobrist_key ^= Zobrist::castle_rights[1];
+            }
         } else {
-            black_king_square = move.to;
-
-            black_castle_rights.queen_side = false;
-            black_castle_rights.king_side = false;
+            if (black_castle_rights.queen_side) {
+                black_castle_rights.queen_side = false;
+                zobrist_key ^= Zobrist::castle_rights[2];
+            }
+            if (black_castle_rights.king_side) {
+                black_castle_rights.king_side = false;
+                zobrist_key ^= Zobrist::castle_rights[3];
+            }
         }
     } else if (piece.type == PieceType::Rook) {
         if (piece.colour == Colour::White && (move.from == Square::A1 || move.from == Square::H1)) {
-            if (move.from == Square::A1) {
+            if (move.from == Square::A1 && white_castle_rights.queen_side) {
                 white_castle_rights.queen_side = false;
-            } else if (move.from == Square::H1) {
+                zobrist_key ^= Zobrist::castle_rights[0];
+            } else if (move.from == Square::H1 && white_castle_rights.king_side) {
                 white_castle_rights.king_side = false;
+                zobrist_key ^= Zobrist::castle_rights[1];
             }
         } else if (move.from == Square::A8 || move.from == Square::H8) {
-            if (move.from == Square::A8) {
+            if (move.from == Square::A8 && black_castle_rights.queen_side) {
                 black_castle_rights.queen_side = false;
-            } else if (move.from == Square::H8) {
+                zobrist_key ^= Zobrist::castle_rights[2];
+            } else if (move.from == Square::H8 && black_castle_rights.king_side) {
                 black_castle_rights.king_side = false;
+                zobrist_key ^= Zobrist::castle_rights[3];
             }
         }
     }
 
+    // Update en passant state
+    if (en_passant_square != -1) {
+        zobrist_key ^= Zobrist::en_passant[en_passant_square % 8];
+    }
+    en_passant_square = -1;
+    if (moving_piece.type == PieceType::Pawn && std::abs(move.to - move.from) == 16) {
+        en_passant_square = (move.from + move.to) / 2;
+        zobrist_key ^= Zobrist::en_passant[en_passant_square % 8];
+    }
+
     turn = oppositeColour(turn);
+    zobrist_key ^= Zobrist::side_to_move;
 }
 
 void Board::undoMove() {
@@ -211,8 +244,11 @@ void Board::undoMove() {
             
     white_castle_rights = previous.white_castle_rights;
     black_castle_rights = previous.black_castle_rights;
+    en_passant_square = previous.en_passant_square;
 
     turn = oppositeColour(turn);
+
+    zobrist_key = previous.zobrist_key;
 }
 
 const MoveState* Board::getLastMove() const {
@@ -371,7 +407,7 @@ int Board::getKingSquare(Colour colour) const {
 bool Board::isKingInCheck(Colour colour) const {
     int king_square = getKingSquare(colour);
 
-    return isSquareAttacked(king_square / 8, king_square % 8, oppositeColour(colour));
+    return isSquareAttacked(king_square, oppositeColour(colour));
 }
 
 // Insufficient material rules as per: https://support.chess.com/en/articles/8705277-what-does-insufficient-mating-material-mean
@@ -428,89 +464,6 @@ bool Board::isInsufficientMaterial() const {
     return false;
 }
 
-std::string Board::getPositionKey(const std::vector<Move>& legal_moves) const {
-    std::string key;
-
-    // Board position
-    for (int rank = 7; rank >= 0; rank--) {
-        int empty_squares = 0;
-
-        for (int file = 0; file < 8; file++) {
-            const Piece& piece = squares[rank * 8 + file];
-
-            if (piece.type == PieceType::None) {
-                empty_squares++;
-                continue;
-            }
-
-            if (empty_squares > 0) {
-                key += std::to_string(empty_squares);
-                empty_squares = 0;
-            }
-
-            key += piece.getSymbol();
-        }
-
-        if (empty_squares > 0) {
-            key += std::to_string(empty_squares);
-        }
-
-        if (rank > 0) {
-            key += '/';
-        }
-    }
-
-    // Turn
-    if (turn == Colour::White) {
-        key += " w ";
-    } else {
-        key += " b ";
-    }
-
-    // Castling rights
-    bool has_castling_rights = false;
-    if (white_castle_rights.king_side) {
-        key += 'K';
-        has_castling_rights = true;
-    }
-    if (white_castle_rights.queen_side) {
-        key += 'Q';
-        has_castling_rights = true;
-    }
-    if (black_castle_rights.king_side) {
-        key += 'k';
-        has_castling_rights = true;
-    }
-    if (black_castle_rights.queen_side) {
-        key += 'q';
-        has_castling_rights = true;
-    }
-    if (!has_castling_rights) {
-        key += '-';
-    }
-
-    // En passant
-    key += ' ';
-    bool en_passant_available = false;
-    for (const Move& move : legal_moves) {
-        if (move.type == MoveType::EnPassant) {
-            int target_rank = move.to / 8;
-            int target_file = move.to % 8;
-
-            key += static_cast<char>('a' + target_file);
-            key += static_cast<char>('1' + target_rank);
-
-            en_passant_available = true;
-            break;
-        }
-    }
-    if (!en_passant_available) {
-        key += '-';
-    }
-
-    return key;
-}
-
 int Board::countPieces() const {
     int count = 0;
     for (const Piece& piece : squares) {
@@ -527,6 +480,14 @@ const Piece& Board::getPiece(int square) const { return squares[square]; }
 const Piece& Board::getPiece(int rank, int file) const { return squares[rank * 8 + file]; }
 
 void Board::setPiece(int square, Piece piece) {
+    const Piece& captured_piece = squares[square];
+    if (captured_piece.type != PieceType::None) {
+        zobrist_key ^= Zobrist::piece[static_cast<int>(captured_piece.colour)][static_cast<int>(captured_piece.type)][square];
+    }
+    if (piece.type != PieceType::None) {
+        zobrist_key ^= Zobrist::piece[static_cast<int>(piece.colour)][static_cast<int>(piece.type)][square];
+    }
+
     squares[square] = piece;
 
     if (piece.type == PieceType::King) {
@@ -560,48 +521,55 @@ void Board::setCastleRights(Colour colour, CastleRights rights) {
     }
 }
 
-void Board::clear() {
-    squares.fill(Piece());
-}
+int Board::getEnPassantSquare() const { return en_passant_square; }
+
+void Board::setEnPassantSquare(int square) { en_passant_square = square; }
 
 const std::array<Piece, 64>& Board::getSquares() const { return squares; }
 
-void Board::draw() {
-    for (int rank = 7; rank >= 0; rank--) {
-        std::cout << (rank + 1) << " ";
-        for (int file = 0; file < 8; file++) {
-            char piece_symbol;
-            switch (squares[rank * 8 + file].type) {
-                case PieceType::Pawn:
-                    piece_symbol = 'P';
-                    break;
-                case PieceType::Rook:
-                    piece_symbol = 'R';
-                    break;
-                case PieceType::Knight:
-                    piece_symbol = 'N';
-                    break;
-                case PieceType::Bishop:
-                    piece_symbol = 'B';
-                    break;
-                case PieceType::Queen:
-                    piece_symbol = 'Q';
-                    break;
-                case PieceType::King:
-                    piece_symbol = 'K';
-                    break;
-                case PieceType::None:
-                    piece_symbol = '.';
-                    break;
-            }
+std::uint64_t Board::calculateZobristKey() {
+    uint64_t key = 0;
 
-            if (squares[rank * 8 + file].colour == Colour::Black) {
-                piece_symbol -= ('A' - 'a');
-            }
-
-            std::cout << piece_symbol << " ";
+    for (int i = 0; i < 64; i++) {
+        const Piece& piece = squares[i];
+        if (piece.type != PieceType::None) {
+            key ^= Zobrist::piece[static_cast<int>(piece.colour)][static_cast<int>(piece.type)][i];
         }
-        std::cout << std::endl;
     }
-    std::cout << "  a b c d e f g h" << std::endl;
+
+    if (turn == Colour::Black) {
+        key ^= Zobrist::side_to_move;
+    }
+
+    key ^= Zobrist::castle_rights[0] * white_castle_rights.queen_side;
+    key ^= Zobrist::castle_rights[1] * white_castle_rights.king_side;
+    key ^= Zobrist::castle_rights[2] * black_castle_rights.queen_side;
+    key ^= Zobrist::castle_rights[3] * black_castle_rights.king_side;
+
+    if (en_passant_square != -1) {
+        int file = en_passant_square % 8;
+        key ^= Zobrist::en_passant[file];
+    }
+
+    return key;
+}
+
+std::uint64_t Board::getZobristKey() const { return zobrist_key; }
+
+void Board::clear() {
+    squares.fill(Piece());
+
+    turn = Colour::White;
+
+    white_castle_rights = {false, false};
+    black_castle_rights = {false, false};
+
+    white_king_square = -1;
+    black_king_square = -1;
+
+    en_passant_square = -1;
+    
+    move_history.clear();
+
+    zobrist_key = 0;
 }

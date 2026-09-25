@@ -2,11 +2,13 @@
 *.pth
 *.csv
 
+!models/training_log.csv
+
 *.DS_Store
 
 *.venv/
 
-*.__pychache__/
+*__pycache__/
 
 # Prerequisites
 *.d

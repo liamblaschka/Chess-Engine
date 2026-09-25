@@ -11,9 +11,9 @@ enum class PieceType {
 };
 
 enum class Colour {
-    White,
-    Black,
-    None
+    White = 0,
+    Black = 1,
+    None = 2
 };
 
 struct Piece {
@@ -46,11 +46,18 @@ struct Piece {
                 break;
             case PieceType::None:
                 return ' ';
+            default:
+                return ' ';
         }
         if (colour == Colour::White) {
             symbol += ('A' - 'a');
         }
         return symbol;
+    }
+
+    bool operator==(const Piece& other) const {
+        return (type == other.type)
+            && (colour == other.colour);
     }
 };
 

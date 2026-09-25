@@ -1,30 +1,31 @@
 #pragma once
 
-#include "LinearLayer.h"
-#include "Accumulator.h"
+#include "NNUEModel.hpp"
 #include <vector>
+#include <array>
 #include <string>
+#include <cstdint>
 
 class NNUE {
 private:
     static constexpr int FEATURE_SIZE = 40960;
-    static constexpr int A_SIZE = 128;
+    static constexpr int A_SIZE = 512;
     static constexpr int H1_SIZE = 32;
-    static constexpr int H2_SIZE = 16;
+    static constexpr int H2_SIZE = 32;
 
-    Accumulator accumulator_w;
-    Accumulator accumulator_b;
-    LinearLayer h1;
-    LinearLayer h2;
-    LinearLayer output;
+    inline static NNUEModel<FEATURE_SIZE, A_SIZE, H1_SIZE, H2_SIZE> model;
+
+    alignas(64) std::array<std::int16_t, A_SIZE> w_acc_values;
+    alignas(64) std::array<std::int16_t, A_SIZE> b_acc_values;
+
 public:
-    NNUE(const std::string& weights_file);
+    float forward(int side_to_move) const;
 
-    float forward(const std::vector<float>& white_acc_values, const std::vector<float>& black_acc_values, int side_to_move);
+    void refreshWhiteAccumulator(const std::vector<int>& active_features);
+    void refreshBlackAccumulator(const std::vector<int>& active_features);
 
-    void refreshWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const;
-    void refreshBlackAccumulator(std::vector<float>& acc_values, const std::vector<int>& active_features) const;
+    void updateWhiteAccumulator(const std::vector<int>& added_features, const std::vector<int>& removed_features);
+    void updateBlackAccumulator(const std::vector<int>& added_features, const std::vector<int>& removed_features);
 
-    void updateWhiteAccumulator(std::vector<float>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
-    void updateBlackAccumulator(std::vector<float>& acc_values, const std::vector<int>& added_features, const std::vector<int>& removed_features) const;
+    static void loadModel(const std::string& weights_file);
 };

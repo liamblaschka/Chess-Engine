@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+UCI::UCI() : search(game) {}
+
 void UCI::run() {
     std::string command;
 
@@ -96,7 +98,7 @@ void UCI::position(const std::string& command) {
 }
 
 void UCI::go() {
-    Move best_move = search.minimax(game);
+    Move best_move = search.run().first;
 
     std::cout << "bestmove " << moveToUCI(best_move) << '\n';
     std::cout.flush();

@@ -1,11 +1,13 @@
 make:
-	clang++ -Isrc -Isrc/board -Isrc/movegeneration src/main.cpp src/board/Board.cpp src/movegeneration/MoveGenerator.cpp -o build/chess -std=c++17
+	g++ -Isrc -Isrc/board -Isrc/movegeneration src/main.cpp src/board/Board.cpp src/movegeneration/MoveGenerator.cpp -o build/chess -std=c++17
 
 test:
-	clang++ -Iinclude src/Board.cpp src/Piece.cpp src/MoveGenerator.cpp tests/MoveGeneratorTests.cpp -o build/tests -std=c++17
+	g++ -Iinclude src/Board.cpp src/Piece.cpp src/MoveGenerator.cpp tests/MoveGeneratorTests.cpp -o build/tests -std=c++17
 
 engine:
-	clang++ -std=c++17 -Iinclude \
+	g++ -std=c++17 \
+	-O3 -march=native \
+	-Iinclude \
 	src/main.cpp \
 	src/UCI.cpp \
 	src/MoveGenerator.cpp \
@@ -13,8 +15,37 @@ engine:
 	src/Board.cpp \
 	src/Game.cpp \
 	src/Search.cpp \
-	src/Accumulator.cpp \
-	src/Activation.cpp \
-	src/LinearLayer.cpp \
+	src/TranspositionTable.cpp \
 	src/NNUE.cpp \
 	-o build/chess \
+
+# engine:
+# 	g++ -std=c++17 \
+# 	-O3 -march=native \
+# 	-fopt-info-vec-optimized=vec.txt \
+# 	-fopt-info-vec-missed=vec-missed.txt \
+# 	-Iinclude \
+# 	src/main.cpp \
+# 	src/UCI.cpp \
+# 	src/MoveGenerator.cpp \
+# 	src/Piece.cpp \
+# 	src/Board.cpp \
+# 	src/Game.cpp \
+# 	src/Search.cpp \
+# 	src/NNUE.cpp \
+# 	-o build/chess
+
+datagenerator:
+	g++ -std=c++17 \
+	-Iinclude \
+	-O3 -march=native \
+	src/DataGeneratorMain.cpp \
+	src/DataGenerator.cpp \
+	src/MoveGenerator.cpp \
+	src/Piece.cpp \
+	src/Board.cpp \
+	src/Game.cpp \
+	src/Search.cpp \
+	src/TranspositionTable.cpp \
+	src/NNUE.cpp \
+	-o build/datagenerator \

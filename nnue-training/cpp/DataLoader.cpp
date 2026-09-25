@@ -2,17 +2,23 @@
 #include "Dataset.h"
 #include "SparseBatch.h"
 #include <vector>
+#include <thread>
 #include <memory>
 #include <utility>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
 
-DataLoader::DataLoader(Dataset& dataset, int batch_size, int num_workers)
-    : dataset(dataset), batch_size(batch_size), num_workers(num_workers), running(true)
+DataLoader::DataLoader(Dataset& dataset, int batch_size, bool fill_virtual_features)
+    : dataset(dataset), batch_size(batch_size), fill_virtual_features(fill_virtual_features), running(true)
 {
     required_batches = dataset.getDataSize() / batch_size;
     remaining_batches = required_batches;
+
+    int num_workers = std::thread::hardware_concurrency();
+    if (num_workers == 0) {
+        num_workers = 1;
+    }
 
     for (int i = 0; i < num_workers + 1; i++) {
         available_batches.push(std::make_unique<SparseBatch>(batch_size));
@@ -54,7 +60,7 @@ void DataLoader::workerLoop() {
             available_batches.pop();
         }
 
-        batch->fill(dataset);
+        batch->fill(dataset, fill_virtual_features);
 
         {
             std::lock_guard<std::mutex> lock(ready_mutex);
@@ -88,6 +94,10 @@ const SparseBatch* DataLoader::getBatch() {
     return current_batch.get();
 }
 
+void DataLoader::setFillVirtualFeatures(bool value) {
+    fill_virtual_features = value;
+}
+
 void DataLoader::resetEpoch() {
     if (current_batch) {
         std::lock_guard<std::mutex> lock(available_mutex);
@@ -118,8 +128,8 @@ DataLoader::~DataLoader() {
 
 
 extern "C" {
-    DataLoader* DataLoader_new(Dataset* dataset, int batch_size, int num_workers) {
-        return new DataLoader(*dataset, batch_size, num_workers);
+    DataLoader* DataLoader_new(Dataset* dataset, int batch_size, bool fill_virtual_features) {
+        return new DataLoader(*dataset, batch_size, fill_virtual_features);
     }
 
     void DataLoader_delete(DataLoader* data_loader) {
@@ -127,6 +137,10 @@ extern "C" {
     }
 
     const SparseBatch* DataLoader_getBatch(DataLoader* data_loader) { return data_loader->getBatch(); }
+
+    void DataLoader_setFillVirtualFeatures(DataLoader* data_loader, bool value) {
+        data_loader->setFillVirtualFeatures(value);
+    }
 
     void DataLoader_resetEpoch(DataLoader* data_loader) {
         data_loader->resetEpoch();
