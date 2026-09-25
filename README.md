@@ -7,10 +7,10 @@ An NNUE (Efficiently Updatable Neural Network) chess engine in C++. The NNUE mod
 - **Search:** Negamax with alpha-beta pruning, move ordering, transposition table, and parallel search.
 - **Concurrency:** Worker threads evaluate root moves using separate game and evaluator states, with shared work coordination to facilitate parallel search.
 
-**How it works**
+## How it works
 The engine generates legal moves, searches the resulting positions, and uses the NNUE to evaluate positions at the search frontier. Alpha-beta pruning cuts off branches that cannot improve the result; move ordering and the transposition table help the search spend its time on promising positions. The evaluator updates its accumulators for changed piece-square features instead of rebuilding every input after each move.
 
 The code separates board state, game rules, move generation, search, and neural evaluation. This made it possible to validate chess rules independently and add search and evaluation optimisations in stages.
 
-**Technology**
+## Technology
 C++, Python, and PyTorch.
