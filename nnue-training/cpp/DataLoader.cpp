@@ -9,11 +9,16 @@
 #include <condition_variable>
 #include <atomic>
 
-DataLoader::DataLoader(Dataset& dataset, int batch_size, int num_workers, bool fill_virtual_features)
-    : dataset(dataset), batch_size(batch_size), num_workers(num_workers), fill_virtual_features(fill_virtual_features), running(true)
+DataLoader::DataLoader(Dataset& dataset, int batch_size, bool fill_virtual_features)
+    : dataset(dataset), batch_size(batch_size), fill_virtual_features(fill_virtual_features), running(true)
 {
     required_batches = dataset.getDataSize() / batch_size;
     remaining_batches = required_batches;
+
+    int num_workers = std::thread::hardware_concurrency();
+    if (num_workers == 0) {
+        num_workers = 1;
+    }
 
     for (int i = 0; i < num_workers + 1; i++) {
         available_batches.push(std::make_unique<SparseBatch>(batch_size));
@@ -123,8 +128,8 @@ DataLoader::~DataLoader() {
 
 
 extern "C" {
-    DataLoader* DataLoader_new(Dataset* dataset, int batch_size, int num_workers, bool fill_virtual_features) {
-        return new DataLoader(*dataset, batch_size, num_workers, fill_virtual_features);
+    DataLoader* DataLoader_new(Dataset* dataset, int batch_size, bool fill_virtual_features) {
+        return new DataLoader(*dataset, batch_size, fill_virtual_features);
     }
 
     void DataLoader_delete(DataLoader* data_loader) {

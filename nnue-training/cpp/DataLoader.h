@@ -14,7 +14,6 @@ class DataLoader {
 private:
     Dataset& dataset;
     int batch_size;
-    int num_workers;
     int required_batches;
     int remaining_batches;
     bool fill_virtual_features;
@@ -33,7 +32,7 @@ private:
     std::vector<std::thread> workers;
 
 public:
-    DataLoader(Dataset& dataset, int batch_size, int num_workers, bool fill_virtual_features);
+    DataLoader(Dataset& dataset, int batch_size, bool fill_virtual_features);
 
     void workerLoop();
 

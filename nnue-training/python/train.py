@@ -15,8 +15,6 @@ WEIGHT_SCALE = 64
 WDL_SCALE = 410
 
 BATCH_SIZE = 2048
-DATALOADER_WORKERS = 12
-
 LEARNING_RATE = 0.002
 EPOCHS = 60
 
@@ -243,8 +241,8 @@ def main():
     validation_dataset = Dataset(validation_path, use_data_augmentation=False)
     print(f"Validation data size: {validation_dataset.size:,}")
 
-    train_loader = DataLoader(train_dataset, BATCH_SIZE, DATALOADER_WORKERS)
-    validation_loader = DataLoader(validation_dataset, BATCH_SIZE, DATALOADER_WORKERS)
+    train_loader = DataLoader(train_dataset, BATCH_SIZE)
+    validation_loader = DataLoader(validation_dataset, BATCH_SIZE)
 
     model = NNUE()
 

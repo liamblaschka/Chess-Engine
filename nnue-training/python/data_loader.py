@@ -70,7 +70,7 @@ _lib.SparseBatch_getKingFeatures.argtypes = [ctypes.c_void_p]
 _lib.SparseBatch_getKingFeatures.restype = ctypes.c_void_p
 
 # DataLoader
-_lib.DataLoader_new.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_bool]
+_lib.DataLoader_new.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_bool]
 _lib.DataLoader_new.restype = ctypes.c_void_p
 
 _lib.DataLoader_delete.argtypes = [ctypes.c_void_p]
@@ -150,9 +150,9 @@ class SparseBatch:
         self.king_factor = SparseFeatures(king_factor_ptr, self.size, KING_FACTOR_SIZE)
 
 class DataLoader:
-    def __init__(self, dataset: Dataset, batch_size: int, num_workers: int, fill_virtual_features: bool = True):
+    def __init__(self, dataset: Dataset, batch_size: int, fill_virtual_features: bool = True):
         self._ptr = None
-        self._ptr = _lib.DataLoader_new(dataset._ptr, batch_size, num_workers, fill_virtual_features)
+        self._ptr = _lib.DataLoader_new(dataset._ptr, batch_size, fill_virtual_features)
         self._dataset = dataset
         self.batch_size = batch_size
         self.num_batches = dataset.size // self.batch_size
