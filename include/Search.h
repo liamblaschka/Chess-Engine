@@ -24,8 +24,6 @@ private:
     NNUE nnue;
     Game& game;
 
-    // std::unordered_map<std::string, Move> previous_best_moves;
-
     TranspositionTable transposition_table;
 
     std::atomic<bool> running;
