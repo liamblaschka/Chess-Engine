@@ -2,6 +2,8 @@
 *.pth
 *.csv
 
+!models/training_log.csv
+
 *.DS_Store
 
 *.venv/

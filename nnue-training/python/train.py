@@ -172,7 +172,7 @@ def train(model: NNUE, train_loader: DataLoader, validation_loader: DataLoader, 
                 epochs_without_improvement += 1
                 
             if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
-                print(f"\n Early stop. No improvement for {epochs_without_improvement} epochs.")
+                print(f"\nEarly stop. No improvement for {epochs_without_improvement} epochs.")
                 break
 
     print(f"Best validation loss: {best_validation_loss:.6f}")
