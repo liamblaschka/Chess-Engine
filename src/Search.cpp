@@ -15,8 +15,6 @@
 #include <mutex>
 #include <condition_variable>
 
-// #include <iostream>
-
 Search::Search(Game& game) : game(game), running(true), result_ready(false), workers_to_start(0), workers_finished(0) {
     NNUE::loadModel("models/nnue.bin");
 
@@ -148,8 +146,6 @@ std::pair<Move, float> Search::run(int depth) {
 
     result_ready = false;
 
-    // std::cout << "RUN: notifying workers\n"; //test
-
     work_available.notify_all();
 
     {
@@ -159,8 +155,6 @@ std::pair<Move, float> Search::run(int depth) {
             work_finished.wait(lock);
         }
     }
-
-    // std::cout << "RUN: workers finished\n"; //test
 
     return result;
 }
@@ -371,30 +365,6 @@ void Search::undoMove(const Move& move) {
     undoMove(move, game, nnue);
 }
 
-// void Search::makeBaseMove(const Move& move) {
-//     makeMove(move);
-    
-    // {
-    //     std::lock_guard<std::mutex> lock(worker_mutex);
-
-    //     for (auto& [thread_game, thread_nnue] : thread_states) {
-    //         makeMove(move, thread_game, thread_nnue);
-    //     }
-    // }
-// }
-
-// void Search::undoBaseMove(const Move& move) {
-//     undoMove(move);
-
-    // {
-    //     std::lock_guard<std::mutex> lock(worker_mutex);
-
-    //     for (auto& [thread_game, thread_nnue] : thread_states) {
-    //         undoMove(move, thread_game, thread_nnue);
-    //     }
-    // }
-// }
-
 float Search::evaluate(Colour side_to_move, NNUE& nnue) const {
     return nnue.forward(static_cast<int>(side_to_move));
 }
@@ -453,28 +423,6 @@ int Search::scoreMove(const Move& move, const Board& board, const Move* tt_move)
 }
 
 void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng) {
-    // int sort_start = 0;
-
-    // std::string position_key = game.getPositionFen();
-
-    // auto it = previous_best_moves.find(position_key);
-    // if (it != previous_best_moves.end()) {
-    //     const Move& best_move = it->second;
-    //     for (int i = 0; i < moves.size(); i++) {
-    //         if (moves[i].from == best_move.from && moves[i].to == best_move.to && moves[i].type == best_move.type
-    //                 && moves[i].promotion_piece.type == best_move.promotion_piece.type)
-    //         {
-    //             std::swap(moves[0], moves[i]);
-    //             sort_start = 1;
-    //             break;
-    //         }
-    //     }
-    // }
-    // std::sort(moves.begin() + sort_start, moves.end(), [&](const Move& a, const Move& b) {
-    //     return (scoreMove(a, game.getBoard()) > scoreMove(b, game.getBoard()));
-    // });
-
-
     TTEntry tt_entry;
     const Move* tt_move = nullptr;
     if (transposition_table.probe(game.getZobristKey(), tt_entry)) {
@@ -490,38 +438,6 @@ void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng)
         }
     );
 }
-
-// void Search::orderMoves(std::vector<Move>& moves, Game& game, std::mt19937& rng) {
-//     struct ScoredMove {
-//         Move move;
-//         int score;
-//     };
-
-//     TTEntry tt_entry;
-//     const Move* tt_move = nullptr;
-//     if (transposition_table.probe(game.getZobristKey(), tt_entry)) {
-//         tt_move = &tt_entry.best_move;
-//     }
-
-//     std::vector<ScoredMove> scored_moves;
-//     scored_moves.reserve(moves.size());
-
-//     for (const Move& move : moves) {
-//         scored_moves.push_back({move, scoreMove(move, game.getBoard(), tt_move)});
-//     }
-
-//     std::shuffle(scored_moves.begin(), scored_moves.end(), rng);
-
-//     std::stable_sort(scored_moves.begin(), scored_moves.end(),
-//         [](const ScoredMove& a, const ScoredMove& b) {
-//             return a.score > b.score;
-//         }
-//     );
-
-//     for (std::size_t i = 0; i < moves.size(); ++i) {
-//         moves[i] = scored_moves[i].move;
-//     }
-// }
 
 int Search::pieceValue(PieceType type) const {
     switch (type) {
@@ -546,17 +462,6 @@ int Search::pieceValue(PieceType type) const {
 void Search::reset() {
     nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
     nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));
-
-    // {
-    //     std::lock_guard<std::mutex> lock(worker_mutex);
-
-    //     for (auto& [thread_game, thread_nnue] : thread_states) {
-    //         thread_game = this->game;
-
-    //         thread_nnue.refreshWhiteAccumulator(getActiveFeatures(thread_game.getBoard(), Colour::White));
-    //         thread_nnue.refreshBlackAccumulator(getActiveFeatures(thread_game.getBoard(), Colour::Black));
-    //     }
-    // }
 }
 
 Search::~Search() {
