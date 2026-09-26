@@ -16,3 +16,8 @@ The code separates board state, game rules, move generation, search, and neural 
 
 ## Technology
 C++, Python, and PyTorch.
+
+## Instructions
+- To compile create a build directory and within run `cmake ..`, then run `make`.
+- From the bin directory run `chess` executable.
+- The engine uses UCI (Universal Chess Interface). 
