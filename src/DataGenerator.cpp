@@ -51,20 +51,6 @@ void DataGenerator::playGames() {
 
                     best_score = std::max(best_score, score);
                 }
-
-
-
-                // std::vector<std::pair<Move, float>> scored_moves = search.getScoredMoves(PLAY_DEPTH);
-                // float best_score = scored_moves[0].second;
-                // if (game.getTurn() == Colour::White) {
-                //     for (const auto& [move, score] : scored_moves) {
-                //         best_score = std::max(best_score, score);
-                //     }
-                // } else {
-                //     for (const auto& [move, score] : scored_moves) {
-                //         best_score = std::min(best_score, score);
-                //     }
-                // }
                 
                 std::vector<std::pair<Move, float>> candidate_moves;
                 for (const auto& [move, score] : scored_moves) {
