@@ -3,7 +3,7 @@
 An NNUE (Efficiently Updatable Neural Network) chess engine in C++. The NNUE model is trained in PyTorch with its weights exported to C++, which includes the game-tree search and game implementation.
 
 ## Highlights
-- **NNUE Evaluation:** NNUE model trained with PyTorch and loaded into C++. Separate accumulators for each side store the feature transformer outputs and support incremental feature updates as moves are made and undone. 
+- **NNUE Evaluation:** NNUE model trained with PyTorch and loaded into C++. Separate accumulators for each side store the feature transformer outputs and support incremental feature updates as moves are made and undone. The model is trained on chess position and evaluation data sourced from: https://www.kaggle.com/datasets/ronakbadhe/chess-evaluations.
 - **Search:** Negamax with alpha-beta pruning, move ordering, transposition table, and parallel search.
 - **Concurrency:** Worker threads evaluate root moves using separate game and evaluator states, with shared work coordination to facilitate parallel search.
 
