@@ -2,6 +2,8 @@
 
 An NNUE (Efficiently Updatable Neural Network) chess engine in C++. The NNUE model is trained in PyTorch with its weights exported to C++, which includes the game-tree search and game implementation.
 
+The bot has played games against other bots on Lichess as <a href="https://lichess.org/@/orange-bot">organge-bot</a>.
+
 ## Highlights
 - **NNUE Evaluation:** NNUE model trained with PyTorch and loaded into C++. Separate accumulators for each side store the feature transformer outputs and support incremental feature updates as moves are made and undone. The model is trained on chess position and evaluation data sourced from: https://www.kaggle.com/datasets/ronakbadhe/chess-evaluations.
 - **Search:** Negamax with alpha-beta pruning, move ordering, transposition table, and parallel search.
