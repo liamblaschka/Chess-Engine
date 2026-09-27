@@ -69,15 +69,15 @@ std::uint32_t TranspositionTable::packMove(const Move& move) {
            (static_cast<std::uint32_t>(move.promotion_piece.colour) << 17);
 }
 
-Move TranspositionTable::unpackMove(std::uint32_t data) {
-    const int from = static_cast<int>(data & 0x3F);
-    const int to = static_cast<int>((data >> 6) & 0x3F);
+Move TranspositionTable::unpackMove(std::uint32_t move_data) {
+    const int from = static_cast<int>(move_data & 0x3F);
+    const int to = static_cast<int>((move_data >> 6) & 0x3F);
 
-    const MoveType type = static_cast<MoveType>((data >> 12) & 0x3);
+    const MoveType type = static_cast<MoveType>((move_data >> 12) & 0x3);
 
-    const PieceType promotion_type = static_cast<PieceType>((data >> 14) & 0x7);
+    const PieceType promotion_type = static_cast<PieceType>((move_data >> 14) & 0x7);
 
-    const Colour promotion_colour = static_cast<Colour>((data >> 17) & 0x3);
+    const Colour promotion_colour = static_cast<Colour>((move_data >> 17) & 0x3);
 
     return Move(from, to, type, Piece(promotion_type, promotion_colour));
 }
@@ -143,9 +143,7 @@ void TranspositionTable::store(std::uint64_t key, TTFlag flag, float value, int 
     const std::uint64_t new_data = packData(flag, value, depth);
     const std::uint32_t new_move = packMove(best_move);
 
-    /*
-        Publish the move and data before publishing the key.
-    */
+    // Store the move and data before the key
     entry.move.store(new_move, std::memory_order_relaxed);
     entry.data.store(new_data, std::memory_order_relaxed);
     entry.key.store(key, std::memory_order_release);

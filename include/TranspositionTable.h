@@ -34,7 +34,7 @@ private:
     static TTEntry unpackData(std::uint64_t data);
 
     static std::uint32_t packMove(const Move& move);
-    static Move unpackMove(std::uint32_t data);
+    static Move unpackMove(std::uint32_t move_data);
 
 public:
     explicit TranspositionTable(std::size_t size_mb = 64);
