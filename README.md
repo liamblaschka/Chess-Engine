@@ -1,6 +1,6 @@
 # Chess-Engine
 
-An NNUE (Efficiently Updatable Neural Network) chess engine in C++. The NNUE model is trained in PyTorch with its weights exported to C++, which includes the game-tree search and game implementation.
+An Efficiently Updatable Neural Network (NNUE) chess engine in C++. The NNUE model is trained in PyTorch with its weights exported to C++, which includes the game-tree search and game implementation.
 
 The bot has played games against other bots on Lichess as <a href="https://lichess.org/@/orange-bot">orange-bot</a>.
 
