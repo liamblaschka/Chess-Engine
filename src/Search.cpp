@@ -16,7 +16,7 @@
 #include <condition_variable>
 
 Search::Search(Game& game) : game(game), running(true), result_ready(false), workers_to_start(0), workers_finished(0) {
-    NNUE::loadModel("models/nnue.bin");
+    NNUE::loadModel("model/nnue.bin");
 
     nnue.refreshWhiteAccumulator(getActiveFeatures(game.getBoard(), Colour::White));
     nnue.refreshBlackAccumulator(getActiveFeatures(game.getBoard(), Colour::Black));

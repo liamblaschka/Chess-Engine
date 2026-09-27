@@ -21,7 +21,7 @@ def _load_shared_library():
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.dirname(script_dir)
-    lib_path = os.path.join(project_dir, "build", lib_name)
+    lib_path = os.path.join(project_dir, "build", "bin", lib_name)
     if not os.path.exists(lib_path):
         raise FileNotFoundError(f"Missing compiled binary at: {lib_path}\n")
     
