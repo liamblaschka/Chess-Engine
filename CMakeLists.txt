@@ -10,7 +10,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 include_directories(include)
 
-add_executable(chess
+add_executable(chess-engine
     src/main.cpp
     src/UCI.cpp
     src/MoveGenerator.cpp
@@ -22,7 +22,7 @@ add_executable(chess
     src/NNUE.cpp
 )
 
-target_compile_options(chess PRIVATE
+target_compile_options(chess-engine PRIVATE
     -O3
     -march=native
 )

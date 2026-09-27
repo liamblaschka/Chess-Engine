@@ -36,7 +36,7 @@ void UCI::handleCommand(const std::string& command) {
 }
 
 void UCI::uci() {
-    std::cout << "id name MyChessEngine\n";
+    std::cout << "id name Chess Engine\n";
     std::cout << "id author Liam\n";
     std::cout << "uciok\n";
     std::cout.flush();
