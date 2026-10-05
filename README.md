@@ -2,7 +2,7 @@
 
 A C++ chess engine combining game-tree search with an Efficiently Updatable Neural Network (NNUE) for position evaluation. The model is trained in PyTorch and exported for inference in C++, integrating machine learning with legal move generation, search, and multithreading.
 
-The engine has played against other bots on Lichess as [orange-bot](https://lichess.org/@/orange-bot).
+The engine has played against other bots and the games can be viewed on Lichess: [orange-bot](https://lichess.org/@/orange-bot).
 
 ## Highlights
 
